@@ -1,7 +1,7 @@
 // 武家合戦3D: plays from the copy saved on the phone first; only a genuine, complete game page from the server updates it.
 // Same site as the original 武家合戦, so: only delete our own old caches (buke-keep3d-*), never the original's.
-const CACHE='buke-keep3d-v5';
-const CORE=['./','index.html','gfx.js','gfx3d.js','mount3d.js','foot3d.js','manifest.webmanifest','icon-192.png','icon-512.png','icon-180.png','icon-1024.png'];
+const CACHE='buke-keep3d-v7';
+const CORE=['./','index.html','gfx.js','gfx3d.js','mount3d.js','foot3d.js','bld3d.js','manifest.webmanifest','icon-192.png','icon-512.png','icon-180.png','icon-1024.png'];
 const MARK='name="app-id" content="buke-kassen-3d"';
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>Promise.all(CORE.map(u=>fetch(u,{cache:'reload'}).then(r=>{if(r.ok)return c.put(u,r);}).catch(()=>{})))).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE&&k.startsWith('buke-keep3d-')).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
