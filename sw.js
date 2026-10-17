@@ -1,6 +1,6 @@
 // 武家合戦3D: plays from the copy saved on the phone first; only a genuine, complete game page from the server updates it.
 // Same site as the original 武家合戦, so: only delete our own old caches (buke-keep3d-*), never the original's.
-const CACHE='buke-keep3d-v22';
+const CACHE='buke-keep3d-v23';
 const CORE=['./','index.html','gfx.js','gfx3d.js','mount3d.js','foot3d.js','bld3d.js','manifest.webmanifest','icon-192.png','icon-512.png','icon-180.png','icon-1024.png'];
 const MARK='name="app-id" content="buke-kassen-3d"';
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>Promise.all(CORE.map(u=>fetch(u,{cache:'reload'}).then(r=>{if(r.ok)return c.put(u,r);}).catch(()=>{})))).then(()=>self.skipWaiting()));});
@@ -17,7 +17,7 @@ async function freshGame(req){
     return r;}catch(e){return null;}
 }
 self.addEventListener('fetch',e=>{
-  const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);
+  const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);if(u.searchParams.has('u'))return;// the update button asks the server directly
   if(r.mode==='navigate'){
     e.respondWith((async()=>{const hit=await (await mine()).match('index.html');
       if(hit){e.waitUntil(freshGame(r));return hit;}
