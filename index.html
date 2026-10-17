@@ -203,6 +203,31 @@ body.rot .lv{font-size:16px}
 @media (orientation:landscape) and (max-height:500px){body.rot .phase-row{font-size:11px}body.rot .mp{height:16px}}
 
 /* home screen: no battle header */
+/* 国盗り */
+#ov .ktc{padding-top:10px}
+#ov .kthd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+#ov .kthd b{font-size:20px}#ov .kthd span b{color:var(--kin);font-size:17px}#ov .kthd small{opacity:.75}
+#ov .ktmap{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#182a3b;touch-action:none}
+#ov .ktmap canvas{display:block;width:100%;touch-action:none}
+#ov .ktzoom{position:absolute;right:6px;top:6px;display:flex;flex-direction:column;gap:4px}
+#ov .ktzoom button{min-width:38px;height:34px;border-radius:6px;border:1px solid rgba(255,255,255,.3);background:rgba(20,24,23,.75);color:#fff;font:700 15px/1 inherit}
+#ov .ktp{margin:8px 0;min-height:60px}
+#ov .ktp h3{margin:4px 0;font-size:18px}#ov .ktp h3 small{font-size:12px;opacity:.75;margin-left:8px;font-weight:400}
+#ov .ktp p{margin:4px 0}#ov .ktmsg{color:var(--kin);min-height:1em}
+#ov .ktbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}#ov .ktbtns .cb{flex:1 1 30%;display:flex;flex-direction:column;align-items:center;gap:2px}
+#ov .ktbtns .cb small{font-size:11px;opacity:.8}
+#ov .ktpk{display:flex;flex-direction:column;gap:4px;margin:4px 0}
+#ov .ktrow{display:grid;grid-template-columns:3.6em 3.6em 2.4em 3.2em 2.4em 2.6em 2.4em;align-items:center;gap:4px}
+#ov .ktrow small{opacity:.7}#ov .ktrow b{text-align:center;font-size:16px}
+#ov .ktrow button{height:32px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--paper);font:700 14px/1 inherit}
+#ov .ktchips{display:flex;flex-wrap:wrap;gap:6px}#ov .ktchips .chip{padding:6px 10px;border-radius:16px;border:1px solid var(--line);background:var(--panel2);color:var(--paper);font:600 13px/1.2 inherit}
+#ov .ktchips .chip.on{background:var(--kin);color:#1a1408;border-color:var(--kin)}
+#ov .ktmv{font-size:13px;opacity:.85}
+#ov .ktspd{margin-left:auto;display:flex;gap:3px}
+#ov .ktspd button{min-width:34px;height:28px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--paper);font:700 12px/1 inherit}
+#ov .ktspd button.on{background:var(--kin);color:#1a1408;border-color:var(--kin)}
+#ov .kte{margin:8px 0;padding:8px 10px;border:2px solid var(--shu);border-radius:8px;background:rgba(224,85,58,.08)}
+#ov .kte h3{margin:2px 0 4px;color:var(--shu)}
 /* the conquest map */
 #ov .natmap{margin:6px 0 12px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#182a3b}
 #ov .natmap canvas{display:block;width:100%}
@@ -483,7 +508,8 @@ const ORDER=['sword','spear','archer','cav','hcav','aka','eng','ship','cmd','tow
 const UNITK=['sword','spear','archer','cav','hcav','aka','eng'];
 // the level a unit unlocks at: in 全国戦 by region (horse archers from the 2nd region, ships from 北陸)
 function lvOf(kd){const k=K[kd];return MODE==='nation'&&k.lvN?k.lvN:k.lv;}
-const unlocked=kd=>{const k=K[kd];if(k.large&&!FOG)return false;const L=lvOf(kd);return!L||(S?S.level:1)>=L;};
+const unlocked=kd=>{const k=K[kd];if(k.large&&!FOG)return false;if(S&&S.kt&&!UNITK.includes(kd))return true;// 国盗り: every building (ships and docks too) from the start
+  const L=lvOf(kd);return!L||(S?S.level:1)>=L;};
 const COL=['#d9a93a','#3f73e6'];
 const DXs=[1,-1,0,0,1,-1,1,-1],DYs=[0,0,1,-1,1,-1,-1,1];
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -735,9 +761,10 @@ const LANDING_SEED=-77;
 const HIDDEN_FROM=45;
 function isLanding(level){return provOf(level).region==='任那'&&(level-1)%5===0;}
 function shapeOfKuni(kuni){return SHAPES[((kuni-1)%SHAPES.length+SHAPES.length)%SHAPES.length];}
-function regionShape(seed){if(MODE!=='nation')return null;if(seed===LANDING_SEED)return SHAPE_LANDING;return shapeOfKuni(Math.round((seed-900)/37));}
+function regionShape(seed){if(MODE!=='nation')return null;if(seed>=KT_SEED0&&KT_SHP)return KT_SHP;if(seed===LANDING_SEED)return SHAPE_LANDING;return shapeOfKuni(Math.round((seed-900)/37));}
 // the map keeps each region's real proportions (same area as before)
-function nationDims(level){const sh=isLanding(level)?SHAPE_LANDING:shapeOfKuni(Math.floor((level-1)/5)+1),b=sh.b,r=clamp((b[2]-b[0])*Math.cos((b[1]+b[3])/2*Math.PI/180)/(b[3]-b[1]),.45,1.35),A=17e6;
+function nationDims(level){if(KT_GO)return ktDims();// 国盗り: a field between two capitals
+  const sh=isLanding(level)?SHAPE_LANDING:shapeOfKuni(Math.floor((level-1)/5)+1),b=sh.b,r=clamp((b[2]-b[0])*Math.cos((b[1]+b[3])/2*Math.PI/180)/(b[3]-b[1]),.45,1.35),A=17e6;
   const r64=v=>Math.round(v/64)*64;return{W:r64(Math.sqrt(A*r)),H:r64(Math.sqrt(A/r))};}
 function shapePolys(sh){const b=sh.b,P=([lo,la])=>[(lo-b[0])/(b[2]-b[0])*W,(b[3]-la)/(b[3]-b[1])*H];return{land:sh.land.map(p=>p.map(P)),lakes:(sh.lakes||[]).map(p=>p.map(P))};}
 function inPolyXY(x,y,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],q=poly[j];if((a[1]>y)!==(q[1]>y)&&x<(q[0]-a[0])*(y-a[1])/(q[1]-a[1])+a[0])c=!c;}return c;}
@@ -769,7 +796,7 @@ async function makeWorld(level,progress){
   const SHP=regionShape(level),PL=SHP?shapePolys(SHP):null;
   let GEO=null;
   if(SHP){HQP[0].x=Math.round(pickLandX(PL,(H-CFG.hq)/H,SHP.sx));const ty=Math.max(CFG.hq,(SHP.ty||0)*H);HQP[1]={x:Math.round(pickLandX(PL,ty/H,SHP.tx)),y:Math.round(ty)};
-    GEO=geoTargets(SHP,PL,SHP.landing?10:Math.round((level-900)/37));if(GEO[4])HQP[1]={x:Math.round(GEO[4].x),y:Math.round(GEO[4].y)};}
+    GEO=SHP.kt?null:geoTargets(SHP,PL,SHP.landing?10:Math.round((level-900)/37));if(GEO&&GEO[4])HQP[1]={x:Math.round(GEO[4].x),y:Math.round(GEO[4].y)};}
   if(WORLD&&WORLD.seed===level&&WORLD.mode===MODE&&WORLD.blk0){// same map as last time: just clear the old buildings
     blk.set(WORLD.blk0);progress(1,'');return;}
   const R=rng(level*7919+13+(MODE==='nation'?99991:0));
@@ -907,7 +934,8 @@ async function makeWorld(level,progress){
       const fr=[.9,.7,.45,.2][i],ty=HQP[1].y+(H*.5-HQP[1].y)*fr;let bi=0,bd=1e9;roadPts.forEach((p,i)=>{const d=Math.abs(p[1]-ty);if(d<bd){bd=d;bi=i;}});
       let pick=roadPts[bi];for(let o=0;o<roadPts.length;o++){let hit=null;for(const j of[bi-o,bi+o]){const p=roadPts[j];if(p&&okAt(p[0],p[1])){hit=p;break;}}if(hit){pick=hit;break;}}
       hqs.push({x:pick[0],y:pick[1]});}
-    else for(const fr of[.9,.7,.45,.2]){const ty=HQP[1].y+(H*.5-HQP[1].y)*fr;let bi=0,bd=1e9;roadPts.forEach((p,i)=>{const d=Math.abs(p[1]-ty);if(d<bd){bd=d;bi=i;}});
+    else for(const fr of[.9,.7,.45,.2]){if(!roadPts.length){hqs.push({x:HQP[1].x,y:HQP[1].y});continue;}// no road over land (a sea crossing)
+      const ty=HQP[1].y+(H*.5-HQP[1].y)*fr;let bi=0,bd=1e9;roadPts.forEach((p,i)=>{const d=Math.abs(p[1]-ty);if(d<bd){bd=d;bi=i;}});
       let pick=roadPts[bi];for(let o=0;o<roadPts.length;o++){let hit=null;for(const j of[bi-o,bi+o]){const p=roadPts[j];if(p&&okAt(p[0],p[1])){hit=p;break;}}if(hit){pick=hit;break;}}
       hqs.push({x:pick[0],y:pick[1]});}
     hqs.push({x:HQP[1].x,y:HQP[1].y});
@@ -1111,10 +1139,12 @@ let S=null,NID=1,SQID=1,running=false;
 const hu=e=>elev(e.x,e.y)+(e.k.elev||0);
 async function newGame(level,tut,replay){
   const ld=$('#loading');ld.hidden=false;running=false;
+  const KT=KT_GO;KT_GO=null;// 国盗り: a fixed army against a fixed garrison
   const NAT=MODE==='nation',kuni=NAT?Math.floor((level-1)/5)+1:0,stage=NAT?(level-1)%5+1:0;
-  const LAND=NAT&&isLanding(level);
-  await makeWorld(NAT?(LAND?LANDING_SEED:900+kuni*37):level,(p,t)=>{$('#loadBar').style.width=(p*100)+'%';if(t)$('#loadTxt').textContent=t;});
-  applyStage(stage);
+  if(KT)KT_SHP=ktShape(KT.bottom,KT.top);// 国盗り: the field between the two capitals, turned the way you march
+  const LAND=KT?KT_SHP.naval:NAT&&isLanding(level);
+  await makeWorld(KT?ktSeed(KT.bottom,KT.top):NAT?(LAND?LANDING_SEED:900+kuni*37):level,(p,t)=>{$('#loadBar').style.width=(p*100)+'%';if(t)$('#loadTxt').textContent=t;});
+  applyStage(KT?5:stage);// 国盗り: the enemy camp is the enemy capital at the top
   // this 陣's enemy lord: a name and a crest different from yours
   const ids=KAMON.map(k=>k.id).filter(id=>id!==myMon()),mon=ids[(level*7+kuni*3)%ids.length];
   const eStyle=NAT?{任那:'gaya',北海道:'ainu'}[provOf(level).region]||'':'';const styChg=setEnemyStyle(eStyle);
@@ -1130,13 +1160,14 @@ async function newGame(level,tut,replay){
   const P0=replay!=null&&nat&&nat.past?nat.past:null,pastR=P0&&P0[replay],pastC=pastR?pastR.camp:null,prev=P0&&P0[replay-1];
   const isStart=r=>!!(r&&(r.startRec||(r.camp&&'unitsMoved' in r.camp)));// version 35 on: the recorded army is the starting one
   const prevEnd=prev&&(prev.out||(!isStart(prev)&&prev.camp&&prev.camp.units));
-  const camp=replay!=null?(pastC?(!isStart(pastR)&&prevEnd?{...pastC,units:prevEnd,unitsMoved:1}:pastC):null):nat&&nat.camp&&nat.camp.level===level?nat.camp:null;
+  const camp=KT?null:replay!=null?(pastC?(!isStart(pastR)&&prevEnd?{...pastC,units:prevEnd,unitsMoved:1}:pastC):null):nat&&nat.camp&&nat.camp.level===level?nat.camp:null;
   S={replay:replay??null,landing:LAND,eStyle,level,kuni,stage,prov:NAT?provOf(level):null,t:0,phase:'build',buildLeft:BUILD_TIME,battleT:0,
      mp:[tut?420:180+(camp?120:0),(50+30*(level-1))*D.mp],reg:[9+2*(level-1)+(nat?nat.income:0),(5+1.8*(level-1))*D.mp],income:nat?nat.income:0,em,sel:[],
      shr:[0,0],waveT:tut?18:MODE==='local'?32:MODE==='region'?42:50,wave:0,thT:0,alarm:0,flank:new Map(),flankPts:[],flT:0,
      ents:[],proj:[],fx:[],marks:[],trenches:[],speed:S?S.speed:1,over:null,
      eT:.5,tut:-1,tutMoved:0,kills:0,losses:0,hq:[],pincers:0,aiTowers:Math.min(6,2+Math.floor(level/2)),
      forts:WORLD.forts.map((f,i)=>({x:f.x,y:f.y,p:0,own:-1,i})),fcache:new Map(),squads:new Map(),intel:[],fogT:0};
+  if(KT){S.kt=KT;S.pool={...KT.army};S.epool={...KT.eArmy};S.em=(.85+.006*level)*D.em;S.mp=[220,60];S.reg=[6+.12*level,(4+.2*level)*D.mp];S.income=0;S.aiTowers=Math.min(4,1+Math.floor(level/8));if(KT.def){S.waveT=14;S.aiTowers=0;S.mp[0]=320;}}
   FV=new Uint8Array(FW*FH);TR=new Uint8Array(NC);S.hasWater=blk.indexOf(2)>=0;
   S.hq[0]=mk(0,'hq',HQP[0].x,HQP[0].y);S.hq[1]=mk(1,'hq',HQP[1].x,HQP[1].y);S.hq[1].seen=1;S.ehq=[S.hq[1]];
   // late in a region (4th and 5th province) a second enemy lord holds a camp beside the first
@@ -1146,7 +1177,8 @@ async function newGame(level,tut,replay){
   if(camp)restoreCamp(camp);
   // remember the veterans this battle began with: a replay of it starts with the same army
   S.startUnits=replay==null&&camp?(camp.units||[]).map(u=>({...u})):[];S.startMoved=!!(camp&&(camp.moved||camp.unitsMoved));
-  if(!tut)fortifyEnemy();
+  if(KT)ktLoadCastles();// 国盗り: your castles in these provinces stand where you built them
+  if(!tut&&!(KT&&KT.def))fortifyEnemy();// invaders come to fight, not to build a camp
   rebuildHQFields();
   buildTrenchLayer();computeFog();
   ld.hidden=true;
@@ -1256,7 +1288,7 @@ function guardSpot(){const alive=(S.ehq||[S.hq[1]]).filter(e=>e.hp>0),h=alive[Ma
   let x=clamp(h.x+Math.cos(a)*rr*1.3,20,W-20),y=clamp(h.y+Math.sin(a)*rr,EZ0+12,EZ-12);if(!passable(x,y)){x=h.x+(Math.random()-.5)*40;y=h.y+30;}return[x,y];}
 function markGuard(sq,p){for(const e of S.ents)if(e.sq===sq){e.guard=1;e.home={x:e.x,y:e.y};e.ax=e.x;e.ay=e.y;e.st='hold';}}
 // share of the enemy army kept home as a garrison: almost none early, about 20%, 30-40% from level 10
-function guardTarget(){const L=S.level;return L<=2?.05:Math.min(.4,.2+(L-3)*.02);}
+function guardTarget(){if(S.kt&&S.kt.def)return 0;const L=S.level;return L<=2?.05:Math.min(.4,.2+(L-3)*.02);}
 function guardShare(){let g=0,n=0;for(const e of S.ents)if(e.side===1&&!e.k.build){n++;if(e.guard)g++;}return n?g/n:0;}
 function rebuildHQFields(){
   S.fhq=[dijkstra(goalCells(HQP[1].x,HQP[1].y,34)),dijkstra(goalCells(HQP[0].x,HQP[0].y,34))];
@@ -1340,14 +1372,14 @@ function canBuild(side,x,y,kind){
 const CROWD_R=60,CROWD_MAX=100;
 function crowdAt(side,x,y){let n=0;for(const e of S.ents)if(e.side===side&&!e.k.build&&!e.k.ship&&Math.abs(e.x-x)<CROWD_R&&Math.abs(e.y-y)<CROWD_R&&Math.hypot(e.x-x,e.y-y)<CROWD_R)n++;return n;}
 function crowded(side,kind,x,y){const k=K[kind];return !k.build&&!k.ship&&crowdAt(side,x,y)+k.size>CROWD_MAX;}
-function spawn(side,kind,x,y){
-  const k=K[kind];
+function spawn(side,kind,x,y,n){
+  const k=K[kind],N=n||k.size;
   if(k.build){const e=mk(side,kind,clamp(x,8,W-8),clamp(y,8,H-8));markBuilding(e,true);return true;}
-  if(count(side)+k.size>CAP)return false;
+  if(count(side)+N>CAP)return false;
   const y0=side===0?PZ+5:EZ0+5,y1=side===0?H-5:EZ-5;
-  const hk=k.horse,cols=hk?3:(kind==='archer'?4:5),sp=hk?12:9.5,rows=Math.ceil(k.size/cols);
+  const hk=k.horse,cols=hk?3:(kind==='archer'?4:5),sp=hk?12:9.5,rows=Math.ceil(N/cols);
   const sq={id:SQID++,side,kind};S.squads.set(sq.id,sq);
-  for(let i=0;i<k.size;i++){
+  for(let i=0;i<N;i++){
     const c=i%cols,r=(i/cols)|0;
     let px=clamp(x+(c-(cols-1)/2)*sp+(Math.random()-.5),6,W-6),py=clamp(y+(r-(rows-1)/2)*sp,y0,y1);
     if(!passable(px,py)){px=x;py=y;}
@@ -1636,6 +1668,7 @@ function step(dt){
   for(let s=0;s<2;s++)S.mp[s]=Math.min(MPMAX,S.mp[s]+(S.reg[s]+fortBonus(s))*dt);
   if(S.phase==='build'){if(S.tut<0)S.buildLeft-=dt;if(S.buildLeft<=0)startBattle();}
   else S.battleT+=dt;
+  if(S.kt)ktTick();
   buildGrid();
   S.fogT-=dt;if(S.fogT<=0){S.fogT=.3;computeFog();}
   if(S.fieldsDirty){S.fieldsDirty=0;rebuildHQFields();for(const e of S.ents)if(e.st==='move'&&e.fld&&!e.k.build)e.fld=e.k.ship?fieldToW(e.gx??e.ax,e.gy??e.ay):fieldTo(e.gx??e.ax,e.gy??e.ay);}
@@ -1805,6 +1838,7 @@ function ai(dt){
   const build=S.phase==='build';
   S.eT=build?.85:1.25+Math.random()*.9;
   if(Math.random()<(build?.55:.3)&&enemyBuildStep())return;
+  if(S.kt){if(!ktEnemyDeploy(build))S.eT=build?.8:2.5;else S.eT=build?.25:1.1;return;}// 国盗り: place the fixed garrison, no troops bought
   // keep MP back for the next planned defence instead of spending it all on soldiers
   if(S.ePlan&&S.ePlan.length&&S.mp[1]<K[S.ePlan[0].kind].cost+40&&Math.random()<(build?.7:.3)){S.eT=.5;return;}
   const towersNow=S.ents.filter(e=>e.side===1&&e.kind==='tower').length;
@@ -1880,7 +1914,7 @@ function snapshot(){
     kills:S.kills,losses:S.losses,pincers:S.pincers,speed:S.speed,forts:S.forts.map(f=>[f.p,f.own]),
     trenches:S.trenches.map(t=>[r(t.x),r(t.y),t.l,t.hp]),squads:[...S.squads.values()].map(q=>[q.id,q.side,q.kind]),nid:NID,sqid:SQID,ents};
 }
-function saveMid(){if(!S||S.over||S.tut>=0||S.replay!=null)return;try{localStorage.setItem(MIDKEY,JSON.stringify(snapshot()));}catch(e){}}
+function saveMid(){if(!S||S.over||S.tut>=0||S.replay!=null||S.kt)return;try{localStorage.setItem(MIDKEY,JSON.stringify(snapshot()));}catch(e){}}
 function loadMid(){try{return JSON.parse(localStorage.getItem(MIDKEY)||'null');}catch(e){return null;}}
 function clearMid(){try{localStorage.removeItem(MIDKEY);}catch(e){}}
 function restoreSnapshot(sn){
@@ -5135,11 +5169,542 @@ try{const o=JSON.parse(localStorage.getItem(LSP+'yaji-v3-save')||'null')||JSON.p
   SAVE.best={local:1,region:1,nation:1,...SAVE.best};if(SAVE.diff==null)SAVE.diff=1;if(SAVE.gfx3d==null)SAVE.gfx3d=1;SAVE.castles={local:[],region:[],nation:[],...SAVE.castles};}catch(e){}
 function save(){try{localStorage.setItem(LSP+'yaji-v3-save',JSON.stringify(SAVE))}catch(e){}}
 
+/* 武家合戦3D: coastlines for the conquest map (Natural Earth 1:10m, public domain; tools/prep_natmap.py) */
+const NATMAP_D={"bb":[125.2,30.6,146.4,45.9],"jp":[[12978,3180,2,-5,-10,-13,-4,4,6,7,3,1],[13166,3248,3,-6,-6,-3,-18,-51,1,-6,4,-2,-4,-18,-7,-7,0,-6,-5,-12,-2,1,1,1,-8,0,-4,6,-6,2,-8,-2,-6,-9,9,-3,-3,-5,6,0,-7,-5,-5,-1,-3,-6,-4,-4,-15,-4,-13,-8,0,7,8,5,6,22,-5,10,-5,2,0,9,-6,1,-5,3,5,3,5,0,3,-2,0,-4,4,0,5,9,-3,6,-9,2,-5,-2,-11,-20,-1,-6,4,-12,6,-5,4,-1,-2,-8,-5,-3,-7,1,-3,6,-4,2,-23,0,-4,8,3,1,-9,7,4,1,7,-4,6,6,4,12,0,8,-7,8,-8,4,-1,3,2,5,5,-2,-4,4,2,7,-5,7,3,5,-2,4,7,4,3,-3,4,2,4,7,10,11,1,5,3,-2,1,1,0,4,6,7,-2,4,5,2,-4,4,11,10,-22,-3,12,7,6,1,-4,5,2,4,-17,13,-2,17,-4,2,-2,3,-7,1,-5,4,-9,-8,-2,1,9,-14,-3,-6,-8,-4,4,-4,5,0,4,4,7,0,3,-2,3,-8,-1,-9,-5,-4,-4,0,-5,-4,-5,-2,0,3,-4,2,0,4,6,3,2,4,-3,4,-9,0,-10,-4,-2,-1,-1,2,-7,-10,-5,-2,-6,-7,-4,0,7,9,-1,3,3,1,0,-1,3,3,-4,0,-5,9,-4,0,-9,12,-1,5,5,11,4,-1,1,-3,3,0,-2,-6,3,3,5,-4,-1,-7,-2,4,2,-6,-2,-2,6,-3,3,4,12,-3,-7,8,2,9,-7,4,-6,-2,-2,4,-3,-2,-2,1,-2,3,2,0,1,4,-3,-2,-2,4,-1,-5,-3,-1,-1,3,3,1,-4,5,-10,4,2,4,2,1,-2,4,1,5,1,1,5,-2,3,4,1,-4,2,-1,4,1,7,-1,1,-5,3,-2,-1,4,3,8,-8,5,3,3,3,-4,2,0,-3,7,1,4,9,-2,2,-2,-2,-3,8,-3,4,5,11,3,0,2,-4,-1,-4,3,7,4,0,2,4,0,1,4,3,-3,-1,-2,4,-1,0,-2,2,-2,3,3,7,0,1,7,-5,-3,-6,4,6,-2,9,6,3,4,-2,4,4,6,2,-1,4,3,8,0,5,5,8,1,7,0,-1,-2,4,1,2,-3,3,-1,4,5,6,3,-1,-10,-4,-5,5,-1,0,-6,5,-10,4,-3,27,-5,5,1,10,10,15,-1,6,-9,1,-10,-3,-7,-7,1,-1,-5,-3,-2,-9,1,0,-9,10,-2,4,2,5,-2,1,2,11,-3,8,3,-9,-14,3,-2,7,1,-4,-3,1,-1,5,-1,1,2,4,-3,2,3,1,-4,-8,0,-3,-7,6,-4,12,0,-10,-5,2,-2,-4,-4,4,0,0,-2,-7,-3,-5,0,-2,-9,-4,1,-8,-11,-4,-1,-1,-6,5,-3,-4,-2],[13469,3383,6,0,-17,-7,-1,-2,-17,-9,-5,-7,-4,-1,0,-3,-7,-8,-6,-22,-4,5,-3,0,-8,13,-6,2,-4,5,-17,3,-2,2,-13,-2,-14,-7,-3,-5,-7,-1,-5,-4,-1,3,-2,-2,-4,-3,2,-7,-5,-7,1,-3,-4,0,-2,-2,-7,-12,-5,2,-3,-2,-2,-3,0,-12,-4,-2,0,-4,7,-7,0,-2,-3,-1,-8,7,-4,-3,-2,2,-7,-3,-8,5,-8,-4,-1,5,9,11,-9,0,-6,3,1,-2,-5,1,0,-2,2,-1,-4,-1,-3,4,3,6,-3,5,-5,1,-4,-3,3,5,4,-2,3,2,-2,0,1,3,-2,1,4,2,-5,1,0,3,2,0,-4,3,-2,-1,-1,1,7,0,3,-3,2,4,4,2,-3,2,2,1,-3,0,-3,2,5,3,-11,-1,-4,2,4,2,0,4,-2,-2,-1,4,3,4,-4,3,-7,-1,-13,-5,-5,-5,-3,1,1,2,-10,-4,8,6,8,1,-1,2,1,1,9,1,15,7,9,9,10,4,8,6,3,18,4,1,2,9,9,6,6,1,1,4,-3,1,3,0,1,2,9,-9,5,-9,5,-3,19,6,19,-2,4,1,9,10,0,10,-8,8,11,-4,3,1,24,15,7,-3,7,0,6,4,3,-7,2,1,3,3,5,-4,-1,-3,8,-4,6,0,4,-4,12,1,5,3,-2,-4,2,1,4,2,-2,-5,-2,-1,3,0,-3,-7,-2,-8,1,-3,4,1,6,-6,0,-4,-5,-6,7,0],[13312,3611,0,-5,-4,-4,0,6],[13307,3613,2,-2,-3,-1,-2,-4,-3,2,-2,0,0,-4,-4,2,9,7],[13342,3445,-8,-10,-6,-3,-1,2,4,3,-5,1,2,2,-3,3,-2,-5,-5,-4,3,-3,-2,-3,-3,1,-7,-4,-1,1,-1,6,4,3,0,-4,2,1,4,4,-8,3,0,-4,-3,-2,-15,-2,-6,-2,-1,2,-8,-4,1,-3,-11,-4,-3,0,-2,2,-6,-3,1,3,-6,7,0,4,3,1,-1,1,-8,0,-3,2,-6,-2,-13,-11,2,-7,-4,-6,1,-12,-7,-5,2,-10,-10,-6,-2,1,4,4,3,0,-1,4,-13,5,-12,8,-4,-3,2,0,-5,0,4,6,-8,3,-11,-3,-4,1,-1,-5,-10,4,-4,-5,-2,2,-3,-1,0,5,-6,-8,-7,-4,-4,3,-4,-2,-1,5,-7,5,-6,2,-12,-14,-4,3,4,7,-1,4,-3,2,-2,4,6,7,-5,10,2,6,14,4,-10,2,3,3,2,1,3,-3,6,1,6,-1,1,-3,3,-1,2,2,-2,4,8,1,3,-3,-5,1,-2,-5,11,2,1,3,8,0,0,3,5,5,-1,2,9,5,2,4,4,1,0,4,6,-1,2,2,7,1,11,3,1,5,16,12,2,-1,1,4,18,12,8,3,9,12,12,8,11,3,3,10,-4,3,1,2,11,1,-2,2,11,4,13,1,0,2,6,1,6,5,7,-4,6,2,2,-2,7,2,2,-1,-8,-4,1,-3,14,-5,4,4,14,4,15,-3,51,5,5,4,7,1,18,7,5,-1,21,1,4,-2,2,1,7,-2,6,5,10,4,-1,1,15,3,6,-6,2,-4,-5,-1,-7,-11,2,-1,4,5,2,-3,-3,0,0,-2,6,-3,2,1,2,-1,-2,-6,3,4,5,-1,0,3,-5,0,-1,3,8,2,4,4,-1,-3,3,-1,0,-4,3,3,0,-5,2,-1,5,1,7,4,2,-1,-5,-4,10,0,3,4,-3,-1,-3,3,5,2,5,-4,4,0,-3,5,5,0,-4,6,11,-3,6,2,-2,10,6,4,3,-7,-2,-2,2,-2,2,0,3,12,-3,4,-8,7,0,5,-3,3,0,3,4,2,12,18,0,5,8,1,18,13,31,34,7,14,1,11,-5,7,0,9,-4,0,-1,1,6,14,-1,4,6,4,10,4,5,-1,14,5,4,4,15,3,4,1,5,-2,0,-6,-10,-2,-1,-5,3,-4,-4,-5,-6,1,-6,-2,-4,-6,-6,-4,-6,4,0,1,-6,-6,0,-5,-2,-1,-1,-3,7,0,5,-3,7,5,0,-13,-6,-10,2,-3,15,-8,14,0,8,4,3,10,4,3,45,13,15,7,5,4,6,-1,8,2,20,14,11,6,11,14,9,8,6,16,5,7,21,13,15,3,8,5,13,11,6,30,11,20,17,17,12,31,3,13,8,7,5,17,1,23,-3,9,-11,8,-4,-1,-4,-3,-8,0,-5,6,1,3,-2,4,0,2,12,-5,5,2,11,15,3,11,1,12,-7,6,-2,15,-1,2,-6,0,0,2,7,4,7,9,5,3,7,-3,8,5,4,-1,3,3,5,22,5,-4,0,3,4,1,-1,1,-7,0,-3,7,-5,1,1,2,6,1,2,12,12,-9,9,5,8,-4,1,-15,3,-14,3,-5,10,-1,5,4,2,6,-3,1,2,1,3,5,6,-2,3,-3,0,-2,8,-2,7,-5,6,4,4,8,2,12,3,5,-7,10,-5,2,-1,-4,-9,-6,-8,2,-3,-3,-9,-1,-5,-3,-4,2,3,18,4,9,6,6,1,6,9,-5,11,-3,8,-7,9,-4,10,2,8,6,-7,-27,0,-13,5,-36,5,-11,4,-3,5,1,11,-10,14,-19,1,-2,-3,-5,7,-4,-3,-2,-1,-5,11,-7,1,-5,-2,-3,6,-15,-4,-16,1,-1,7,4,-1,-6,4,-3,-5,-6,-7,-3,5,-1,4,3,2,-1,-3,-5,-5,-1,-4,-2,2,-1,-5,-5,7,2,0,-2,-7,-4,2,-1,-3,0,0,-3,5,0,-2,-4,-5,0,1,-2,4,0,-1,-2,-8,-2,7,-5,-7,0,-2,-1,5,-3,-5,0,3,-4,-12,2,2,-5,-4,-2,2,-2,-5,2,1,3,-5,-1,3,-14,-3,4,-5,-1,0,-6,-7,-5,5,-4,0,-3,-3,1,-8,-5,8,-3,-7,-6,4,-4,2,2,2,-3,-1,-4,-3,3,-2,-5,2,-1,-4,-2,2,-4,3,1,3,-1,-3,0,-2,-2,3,-1,1,-6,-1,-3,-7,3,1,2,-4,2,0,4,-13,3,-10,-2,-3,-7,-2,0,-2,5,-5,-1,-3,-5,3,0,0,-2,-6,-5,-5,-7,-5,-20,1,-8,9,-16,-1,-5,2,-3,1,-27,-3,-25,-5,-16,-16,-8,-6,-12,-5,-15,-7,-11,0,-17,-6,-6,2,-12,7,-15,19,-27,4,-2,-2,-3,-3,2,-11,-3,0,2,-6,-1,-18,-12,-6,-8,-3,-11,2,-8,-3,-12,-3,0,-3,-5,-3,2,-5,-4,-11,1,-3,-4,-11,-6,-3,-8,-3,-3,-9,-1,-3,4,-5,2,-1,2,12,2,-3,3,1,3,-3,10,0,4,5,2,0,3,-2,4,-7,3,4,1,2,5,5,-2,1,6,11,5,9,10,-1,0,-1,3,-10,7,-6,-1,2,-2,-4,-3,-5,3,-1,-3,-3,3,-2,-4,-2,5,3,-11,-1,-3,-8,-5,-7,-1,5,-2,0,-3,-5,0,2,-2,-1,-8,10,-5,-2,-4,-6,-2,2,-5,-7,-1,-2,7,2,1,-8,10,-5,-1,-8,2,-23,-6,-3,-2,1,-10,-4,1,-4,-7,0,-3,3,0,-2,-5,5,-6,0,-7,-4,-1,-5,-8,-5,-5,-1,-8,-5,1,-10,-6,-9,9,-1,4,3,2,-2,6,0,7,4,3,-3,7,3,5,12,0,-11,9,-10,2,-15,-4,-5,-7,1,-4,0,2,2,1,-2,-4,-14,-6,-4,-6,1,-3,-5,-6,-7,-6,-3,-7,4,-5,-26,8,-8,0,-10,-3,-11,3,-13,1,-12,-1,-29,-8,-12,-1,5,8,4,-3,17,10,2,-4,1,4,3,0,-3,1,1,3,-4,4,-9,0,-2,-5,0,2,-15,0,-6,5,2,9,-6,-14,4,-5,1,-3,-11,4,-2,3,2,7,-3,3,-1,8,6,9,1,5,-2,0,-2,-5,-2,4,1,-5,-3,0,-1,2,0,-3,-7,1,-7,-5,-2,-9,-11,-12,-1,-9,3,-3,0,-5,8,-1,12,-8,10,-2,3,-5,4,-1,0,-5,-4,-1,3,-1,-3,-3,2,-6,-6,-2,-5,0,-2,2,7,-1,1,5,-4,0,0,-2,-4,2,-7,-1,2,3,-1,0,-6,-2,2,-1,-6,-4,-4,2,-1,-2,-4,1,-1,-4,-4,1,-13,-6,-4,-3,1,-6,-3,-1,-3,3,-3,-3,6,-6,-1,-5,-2,0,-2,2,-3,-2,3,-3,-2,0,-7,-5,-4,0,-12,-24,-4,-3,2,-3,-8,-6,-7,-2,-3,-4,1,-3,-3,-1,1,5,-13,1,-20,6,-5,4,-1,5,-5,3,1,2,6,1,-1,1,-8,6,-8,1,-11,11,-6,-1,0,2,2,1,-1,2,3,2,-2,1,0,2,8,4,-1,3,-6,2,4,4,-1,3,7,0,0,1,-7,9,-6,3,5,5,10,2,16,14,0,4,4,4,0,13,-3,-1,-4,3,-5,0,0,-3,-4,0,0,2,-3,-1,2,-4,-5,2,-1,-2,-13,-3,-9,2,-22,13,-19,0,-3,-1,-2,0,-1,3,-7,-6,-5,1,-2,-3,-14,2,1,-2,6,-1,-12,-6,3,0,-4,-4,-7,-2,-3,2,-6,1,-5,-2,0,-3,6,3,5,-1,-4,-6,-3,1,-4,-8,-12,1,1,-2,-4,0,-7,9,-25,-11,5,6,-2,1,-7,-2],[14577,4339,5,-2,-14,-6,-5,0,-6,-5,-5,-9,1,0,-8,1,-15,-1,-7,-3,-9,-1,-2,-4,5,-1,-9,-5,-8,1,3,-3,-2,-2,-11,-1,-6,3,0,3,-4,1,-6,-7,4,-5,-4,-1,-14,3,-14,-1,-7,2,-3,4,-4,0,-28,-7,-15,-9,-31,-24,-23,-28,-3,-9,1,-12,-9,-18,-12,10,-16,8,-20,5,-30,11,-18,10,-11,9,-11,1,-13,9,-11,4,-18,2,-21,-6,-34,-17,-11,-9,-5,3,6,1,-7,3,-2,5,-17,14,-4,2,-19,0,-8,-4,-9,-11,-4,-8,0,-9,26,-15,16,2,6,-3,7,-8,13,-11,14,-4,9,-7,-8,-2,-11,-7,-19,6,-11,-2,2,6,-7,2,-6,-9,-15,-6,-2,-4,0,-11,-16,-5,-6,-8,-7,2,-4,-1,-6,3,-6,14,10,22,5,1,-1,6,3,4,0,7,-12,13,-10,3,-5,5,-9,6,-2,8,8,14,-1,16,8,5,13,1,9,6,4,6,10,-5,10,13,14,11,-3,8,-15,13,-1,4,3,8,7,0,6,4,31,-17,21,3,1,-6,15,-3,13,6,12,12,2,9,-8,11,3,6,-5,13,5,8,14,5,11,10,3,13,-1,21,9,14,4,18,-4,29,-18,32,1,4,7,9,-1,8,3,3,2,-5,13,2,6,3,1,5,5,2,12,-12,16,-10,32,-28,9,-14,35,-29,32,-20,5,-1,6,-6,14,-7,23,-6,-10,-1,5,-7,21,-1,6,3,12,0,5,-2,-4,-3,-2,-5,4,-1,7,9,2,1,2,-1,2,-7,10,-8,36,-5,9,3,22,18,15,9,14,14,3,-6,0,-4,-8,-10,-3,-8,-12,-12,-7,-18,5,-8,10,-10,9,-22,8,-6,-3,-1,-9,5,-1,-2,6,-3,0,-2,15,-3,5,-2,-2,4,8,7,8,4],[13105,3084,4,-6,-2,-1,-1,-16,-11,-1,-1,7],[13015,3220,4,0,0,-2,-4,-7,-4,8,1,2],[13041,3251,5,2,1,-2,-4,-2,-4,-9,-3,-3,-1,5,-11,-2,-2,6,14,7],[13016,3255,4,-7,0,-14,-13,-12,-7,-3,1,6,-5,-1,0,1,10,6,-5,0,-3,2,1,9,4,6,-3,5,4,-1],[12888,3267,2,-3,-12,1,1,-4,-2,-4,-3,3,-9,-1,-5,2,2,6,2,-3,1,3,-1,9,2,2,2,0,2,-4,11,6,0,-3,4,-3,-1,-4],[13979,3314,9,-5,-4,-5,-5,2,-5,6,1,3],[12910,3299,7,2,1,-3,-8,-6,0,-6,-3,0,-1,-4,-1,0,-2,11,-5,2,4,3,2,-1,1,1,0,6,3,-2,3,15,1,-6],[12956,3341,0,-4,-7,-12,-8,-7,-7,0,1,3,3,-3,3,1,-3,2,1,3,3,0,-1,3,3,3,0,5,6,1,1,2,1,-1,2,1,-1,2],[12978,3377,2,-2,-6,-1,-2,-4,-4,4,-2,0,-1,3,4,-1,-3,6,2,-1,1,6,8,-3,0,-4,3,-1],[13224,3387,-2,-1,-3,6,4,3,5,-1,5,-4,7,2,2,2,5,0,-3,-4,-6,-1,-1,-5,-4,1,-1,3,-4,-2],[13949,3406,0,3,7,2,2,-2,-5,-5,-2,0],[13256,3407,-10,2,5,4,-1,3,3,2,2,-1,0,-6,3,1],[13300,3421,-5,-1,4,3,-2,2,6,5,2,-8],[12931,3428,1,1,3,0,-3,-3,0,-3,-2,-1,-2,-9,-6,-4,-3,2,-2,0,4,22,2,-1,-1,-3,6,3],[13927,3440,3,2,-3,-10,-2,2],[13500,3461,3,-3,-13,-16,0,-5,6,-10,-16,-7,-7,-1,-3,3,2,3,-3,-1,-3,5,2,4,4,0,8,12],[12945,3462,3,-2,-2,-5,-10,-14,0,-2,3,2,0,-4,2,-2,-4,-4,-5,-1,-1,2,4,1,0,3,-4,-2,0,4,-2,-4,-6,2,4,2,0,5,4,3,-3,-1,0,1,5,8,-4,3,3,8,6,-1,5,4,-1,2,4,0,3,-6],[13942,3478,4,-4,-2,-6,-8,2,-1,2,1,8],[13337,3627,1,-6,-5,-2,1,-1,-1,-2,-7,0,-7,5,2,9,8,4],[13846,3807,12,0,0,-3,-8,-13,-13,-8,-10,-3,-5,0,0,3,6,2,1,6,5,6,-3,3,-6,-2,-1,9,7,10,12,9,4,5,4,1,0,-8,-7,-14,0,-5],[13955,4224,1,-1,-4,-6,-1,-7,-5,-5,-3,2,-2,10,4,5],[14531,4359,5,-4,-8,-3,0,2,5,3,-13,4],[14133,4517,-2,-5,-6,-2,-10,5,-2,6,7,4,7,-2],[14105,4545,2,-3,-3,-16,-4,9,0,7,-3,4,2,1,2,-3],[13437,3455,-2,-12,-4,2,1,2,-8,-5,0,4,-7,1,1,5,2,-1],[12993,3187,0,-4,-4,-2,-3,1,-1,4,-3,-1,2,3,7,-3,0,2],[13045,3260,0,-4,-2,-2,-3,5,4,3],[12890,3282,1,-3,-3,-2,-4,1,0,5,3,-3,-1,4],[12903,3290,-1,-5,-5,2,-1,3,4,-1,-2,4],[13309,3417,-4,-5,-3,0,1,7],[13292,3428,0,-6,-7,0,0,2],[13234,3430,-1,-4,-6,-2,3,5],[13705,3715,-1,-3,-9,-2,-4,4]],"kr":[[12836,3862,27,-48,29,-34,14,-12,1,-7,4,-1,4,-9,18,-23,5,-15,5,-6,-2,-5,6,-29,-5,-11,2,-21,-5,-9,-1,-12,5,-10,-5,-6,7,-5,10,9,4,-6,-5,-8,-4,-19,-6,-11,3,-4,-2,-9,-4,-4,-4,6,0,-2,2,-3,-3,-3,0,-10,-9,-3,-1,-7,-7,-9,-7,-1,1,-4,-3,-2,-4,3,-4,-6,-2,2,0,-3,-4,0,0,9,-4,-6,-2,4,-2,-4,-9,0,-1,3,-2,-3,-3,2,-3,0,0,4,-2,-2,-4,3,-2,-1,-2,7,-2,-3,4,-11,3,-1,-5,0,-2,3,-10,1,0,-2,-9,-3,-2,-4,12,4,0,-5,-7,-2,2,-2,-1,-7,2,0,1,1,1,-1,-3,-5,-6,0,0,1,4,1,-8,1,-2,3,4,1,-2,4,-4,-4,-8,3,-1,-5,-7,0,-2,3,-6,1,1,15,-5,-4,-2,-1,1,-4,-6,-1,-2,4,-4,-7,-15,1,-2,3,-1,-5,-5,-3,-2,-1,-5,5,-1,-4,2,-5,6,-5,4,3,8,1,-4,-12,-3,-1,-5,1,-4,-3,2,-8,-8,4,2,9,-4,6,-2,8,-4,-5,-11,-2,6,-2,-7,-4,4,0,1,-6,6,-4,2,-2,-4,0,5,-2,0,-3,-5,-2,-6,3,-4,-1,1,-4,8,-1,-7,-5,-4,-2,1,-2,-2,-1,-10,11,-5,-2,1,-2,-6,3,9,10,-2,-7,6,1,1,5,-2,4,3,4,4,-6,5,5,-3,4,-4,-2,-4,5,-5,-8,-6,0,-13,-8,-2,-7,-5,-4,0,-5,-4,0,0,-3,-9,3,0,12,-3,2,-2,-3,1,-4,-3,-1,2,-3,-5,-3,2,-2,-4,1,-1,-3,-5,-1,-3,-10,-8,-1,1,5,-5,1,4,6,-4,2,0,5,-1,-1,2,4,5,0,-3,2,3,3,-15,-3,-4,5,-3,-1,-2,2,0,2,2,0,-5,3,2,11,3,0,4,-5,-2,-2,3,-7,9,-3,1,2,-4,1,-1,4,-3,-1,-1,7,7,0,0,-4,9,-5,-2,3,10,-2,-6,3,-5,6,-15,3,10,3,7,-3,1,5,10,-1,-1,1,4,1,-2,1,-7,0,1,6,-2,2,-3,-2,1,-3,-4,-7,-2,1,0,2,-12,-2,6,10,-3,6,4,3,-7,-1,-1,-4,-4,1,1,0,-3,3,5,0,2,5,-5,6,-2,1,1,-2,-2,-2,-4,7,4,2,3,-2,2,4,0,-6,7,-4,2,-4,2,8,-8,7,-1,7,-5,-1,7,2,-2,1,5,11,5,-2,-4,4,7,14,10,1,5,3,5,-4,-2,6,-16,-1,-5,2,1,4,13,7,3,7,3,1,7,0,5,-3,1,3,-9,6,3,1,7,0,4,3,-3,2,-8,-2,-12,0,0,4,-8,1,-1,3,22,2,13,7,-18,-6,-6,8,2,0,-6,5,-4,0,-2,2,-4,-2,1,3,3,1,7,0,-7,5,5,7,-7,3,7,3,-6,2,-2,5,12,5,-6,0,-4,-3,-2,1,-2,5,3,3,-4,1,-1,6,5,0,1,3,-4,2,3,2,-4,2,1,3,2,0,-2,3,-4,-3,0,-8,-2,-3,-5,2,1,7,-1,3,-3,1,-2,-4,-2,0,4,-9,-4,-3,0,5,-3,4,0,5,-4,-4,-5,-1,-2,3,4,1,1,2,-5,3,-3,-6,0,6,4,6,2,-4,2,0,-2,3,3,-1,2,2,-4,0,1,4,-2,3,4,1,0,-3,5,0,1,9,2,1,1,-9,-4,-8,1,-1,4,1,3,-1,-3,6,1,1,3,-2,3,2,-2,2,2,0,2,4,-7,4,3,1,-4,2,1,1,4,-1,0,2,6,-1,-2,-4,1,-1,3,1,1,-2,-1,-7,1,-3,4,11,6,-5,-9,10,2,1,3,-3,3,0,-6,4,-1,3,13,-5,0,-9,5,8,8,-1,4,-2,-2,-7,3,3,2,-1,2,-12,-2,-1,2,-3,1,8,4,-1,-4,5,13,5,2,3,-2,2,5,2,-6,-1,-1,-5,-6,0,-9,7,6,1,-1,1,4,-1,-2,9,-2,-1,-2,-5,-9,1,0,7,10,3,0,3,-3,-2,-3,3,-9,-6,-2,0,2,3,-4,0,0,2,5,3,-4,1,-2,3,11,0,1,-3,4,5,5,0,-18,6,3,5,-6,1,-2,-3,-2,2,2,3,-4,3,0,3,4,3,-4,1,0,4,-4,6,-3,16,13,-1,0,-9,10,-3,-8,5,2,14,-3,0,0,11,9,4,9,10,7,5,5,9,12,7,7,2,22,1,9,-2,28,3,5,-4,24,1,13,6,6,4,5,8,0,10],[12641,3646,2,-5,-7,0,2,4,-4,-1,2,3,-3,0,-2,11,5,3],[12630,3780,4,-1,-2,-3,-10,0,3,5],[12695,3348,-1,-5,-7,-6,-3,-6,-20,-5,-3,-2,-28,0,-6,-4,-10,7,1,7,9,10,4,2,17,6,31,4,11,-4,3,-6],[12717,3448,6,0,0,-5,-6,-1,-5,2,-1,2],[12638,3450,-3,-9,-4,1,0,-2,-10,-4,-7,0,1,3,-3,1,0,-2,-2,2,2,4,5,2,6,7,4,-1,-2,5,7,-4,3,2],[12778,3468,4,-6,-3,-4,-5,5,3,4,-1,4,3,1,1,-2],[12599,3471,2,-2,-3,-3,-5,1,-1,3,6,3],[12601,3478,0,-2,-6,0,-2,-4,-3,1,-1,3,2,2],[12606,3491,1,2,2,-2,-1,-4,-9,-1,4,5],[12807,3482,-1,-12,-8,0,-4,7,-5,-6,-3,2,-3,14,7,7,4,-3,-3,-4,1,-3,4,-3],[12875,3487,-1,-3,-2,0,2,-5,-5,2,-3,-5,3,-2,-11,-3,4,2,-2,1,0,3,-3,-2,-1,3,3,1,1,5,-7,-3,-4,6,3,3,5,1,8,-2,-4,6,8,4,-1,1,2,3,2,-1,1,-8,-2,-6,3,1],[12611,3505,-5,1,1,4,6,4,4,0,-4,-2,1,-4],[12656,3751,2,-2,-7,-2,-7,-5,-4,2,-4,0,0,3,11,3,3,3],[13090,3755,2,-4,-2,-5,-7,1,-2,5],[12636,3770,2,-2,-1,-2,-9,4,3,5],[12651,3760,-3,1,-7,-1,-4,3,5,2,-5,8,0,7,4,2,11,-5,2,-14],[12753,3445,1,-2,-5,-2,-4,6,6,0],[12778,3451,0,-2,-4,1,-3,4,4,1],[12610,3460,0,-4,-6,-3,1,2,-2,1,5,2,-2,4],[12617,3473,0,-3,-3,2,-3,0,-4,5,9,-2],[12608,3482,-1,3,4,0,1,3,3,0,-3,-8,-2,0],[12807,3485,1,-1,-11,1,-1,1,4,5,2,0,-1,-4,4,2],[12661,3726,0,-3,-7,-3,2,4,-2,4,4,1],[12660,3417,1,-2,-3,1,-4,-3,-3,1,2,4],[12691,3420,1,-2,-1,-2,-6,0,2,5],[12661,3422,-3,-4,-3,1,1,4],[12685,3431,-9,3,8,1,5,-1],[12676,3431,1,-2,-4,0,-4,1,1,2,-5,1,0,7,6,-1],[12676,3438,2,5,6,1,2,-5,-4,1,-4,-5],[12839,3482,5,0,-2,-6,-5,4,1,1,-5,2,2,1],[12634,3486,2,-2,-2,-2,-3,4,-8,-1,6,3,1,4,5,-2,-3,-2],[12623,3505,-6,2,-1,3,8,0,-2,-2,4,-2,0,-4]],"land":[[12520,4590,840,0,-2,-3,-3,2,-4,-1,-3,-6,3,-4,-7,-7,5,-2,-3,-4,2,-2,-5,-1,-2,-5,-4,0,-19,-8,-5,-7,-3,-13,2,-16,-15,-10,-100,20,-6,3,-6,8,-6,-4,-7,-8,-9,-2,-2,-4,1,-4,-1,-3,-18,-13,-10,1,-15,-7,-7,2,-6,-1,-3,-5,-9,-2,0,-2,14,-14,19,-63,-4,-3,-1,-5,1,-6,-5,-13,2,-19,-3,-6,11,-8,1,-7,-3,-4,-1,-7,-7,-7,1,-8,-10,-9,2,-12,-8,-1,-3,-5,-22,2,-4,-5,-14,0,-18,-8,-3,-4,2,-2,10,0,5,-3,3,-5,-1,-5,-4,-2,-3,8,-4,-2,1,-2,-2,-2,-2,1,0,4,-11,5,-6,6,-2,3,2,13,-2,3,-14,2,3,4,-1,2,-12,-2,-7,5,-2,0,-3,-1,3,-2,-6,-2,-9,-21,0,-5,3,-2,-1,-3,-4,-2,2,-2,-2,-2,-1,-11,-3,-4,-11,1,0,-4,-5,-4,-11,7,-4,-1,-5,2,1,-3,-2,1,-3,-4,-6,-2,0,-5,-5,0,4,-2,-5,-6,3,-2,-9,-7,-6,0,-3,-5,-7,-1,-2,-5,-4,-1,-18,2,-1,-2,-10,0,-5,-3,-6,0,-24,3,-23,-4,-1,-2,3,-11,4,-2,7,-13,9,-5,5,-8,-11,-18,-4,-2,-5,0,2,1,-2,1,-4,-1,-1,3,-3,-1,-2,6,-3,-2,-3,2,-6,-1,-3,-3,-19,2,-2,-2,-8,3,-2,3,-23,0,-4,1,1,3,-7,2,-3,-3,-5,0,-3,2,8,5,-12,5,-1,4,3,0,-4,5,-9,4,-2,3,-4,-2,-3,-3,-5,-2,-2,-3,-9,4,-1,-2,4,-2,-6,-3,-5,0,-5,-6,1,-5,-8,-13,2,-8,-3,-1,1,3,-3,0,-3,-2,-17,-20,-15,-7,2,-2,-4,-5,-2,-1,-3,-6,-7,-3,3,0,0,-1,-7,-2,-5,2,-7,-3,-6,2,-12,-8,4,-4,-7,-1,-4,2,-2,-5,-8,-2,-2,-4,-3,0,-1,-4,-12,2,-3,-3,-6,-2],[12836,3862,-8,-4,0,-10,-5,-8,-6,-4,-13,-6,-24,-1,-5,4,-28,-3,-9,2,-22,-1,-7,-2,-12,-7,-5,-9,-7,-5,-9,-10,-9,-4,0,-11,-2,-3,-6,-3,-15,8,-4,4,-14,-4,-8,-1,-3,-2,1,-9,-5,1,-2,6,-3,0,0,7,-5,-2,-5,6,-2,-1,5,-8,-7,2,-9,10,-2,1,-1,4,-20,4,-2,-2,2,-2,8,-1,0,-3,4,0,-2,-2,4,0,-5,-3,-6,3,1,-7,-2,-2,2,-2,-3,-1,1,-4,-4,0,-1,2,-4,-2,0,3,-6,-7,-8,-1,-4,-4,-1,1,2,7,8,1,-6,1,1,2,7,2,6,0,1,2,-4,1,2,4,-6,3,-3,-1,1,-1,-5,-1,5,-2,1,-3,-4,3,-5,-1,3,-2,-7,-3,-1,1,-6,0,7,6,-5,3,0,2,-6,-5,0,17,5,-3,2,4,-2,2,-5,0,0,57,7,2,3,-1,7,3,7,0,2,2,5,-2,1,-4,3,3,6,-5,5,0,-13,9,-5,1,-3,5,-4,-2,2,-2,-1,-1,-3,-1,-3,1,-2,-1,-4,1,1,-2,-3,-1,-4,3,3,3,-2,2,-2,2,-1,-6,-2,0,0,25,7,9,7,0,-6,1,1,6,5,2,-1,2,1,2,7,0,-2,4,5,6,-2,1,-2,4,2,0,4,3,-10,1,2,4,-4,-1,7,11,4,2,-1,2,-15,-6,-8,5,2,2,-3,0,0,101,6,2,3,3,12,-2,1,4,3,0,2,4,8,2,2,5,4,-2,7,1,-4,4,12,8,6,-2,7,3,5,-2,7,2,0,1,-3,0,7,3,3,6,2,1,4,5,-2,2,15,7,17,20,3,2,3,0,-1,-3,3,1,-2,8,8,13,-1,5,5,6,5,0,6,3,-4,2,1,2,9,-4,2,3,5,2,3,3,4,2,2,-3,9,-4,4,-5,-3,0,1,-4,12,-5,-8,-5,3,-2,5,0,3,3,7,-2,-1,-3,4,-1,23,0,2,-3,8,-3,2,2,19,-2,3,3,6,1,3,-2,3,2,2,-6,3,1,1,-3,4,1,2,-1,-2,-1,5,0,4,2,11,18,-5,8,-9,5,-7,13,-4,2,-3,11,1,2,23,4,24,-3,6,0,5,3,10,0,1,2,18,-2,4,1,2,5,7,1,3,5,6,0,9,7,-3,2,5,6,-4,2,5,0,0,5,6,2,3,4,2,-1,-1,3,5,-2,4,1,11,-7,5,4,0,4,11,-1,3,4,1,11,2,2,-2,2,4,2,1,3,-3,2,0,3,9,23,6,2,-3,2,5,1,8,-5,11,2,1,-2,-3,-4,14,-2,2,-3,-2,-13,2,-3,6,-6,11,-5,0,-4,2,-1,2,5,3,1,2,-1,6,-15,7,-5,1,-8,4,-2,-10,-4,-1,4,-8,4,-4,-1,-3,-2,-3,1,-3,-3,2,-5,-3,2,0,-3,-6,-5,1,4,-3,2,-9,-7,0,-7,-3,0,-1,-3,-4,2,-5,-1,-4,-8,-2,1,-3,-3,2,-2,-3,-2,-1,-4,-6,0,-5,-14,-4,2,-4,-2,-3,-8,-5,-3,-4,-10,1,-9,15,-8,-5,-9,-5,-17,2,-14,3,-4,-4,-11,-15,1,-5,-4,-9,-2,-8,-3,-5,-8,-3,4,-4,0,-6,-14,-9,-10,-10,-1,-12,-9,-22,-6,-2,-4,5,-3,-1,-4,-3,-2,-4,1,-16,-9,-7,0,-3,-7,-7,5,-3,-2,0,-3,-7,-1,-15,3,-7,-8,-3,1,-4,-9,-9,0,1,-2,-9,-2,-4,-4,-4,2,-12,-11,1,-7,4,-1,2,-4,-5,-9,4,-19,-2,-2,-2,2,2,5,-4,6,-12,-5,5,-2,4,0,0,-1,-4,-2,-4,1,-2,-10,2,-4,6,-3,4,2,4,-4,8,0,7,-3,8,0,13,-16,2,0,10,-10,8,-2,12,-11,7,3,8,-8],[13775,4590,-8,-11,-27,-17,-26,-25,-6,-1,-27,-17,-3,-8,-9,-7,-3,0,-10,-9,-1,-6,-10,-6,-1,-4,-1,-2,-7,2,-5,-5,2,-3,-6,-2,-3,-4,-1,-8,-3,-1,-3,-6,-12,-5,-5,1,-16,-10,-2,-7,-3,-3,-7,-2,-2,-4,-4,-3,0,-5,-4,-8,-8,-4,-3,-8,-5,3,0,-6,2,0,0,-1,4,0,-9,-12,-15,-7,-4,4,-6,-2,5,-3,-1,-4,-8,-10,0,-3,-17,-5,-13,-8,-7,-6,-7,-2,-27,-14,-24,-8,-8,-8,-6,-3,-12,-9,-9,2,-11,-5,-1,-3,-5,3,-8,0,-2,-2,-5,0,-10,-6,-18,-3,-8,-5,-14,1,-2,2,8,3,-8,5,1,2,-2,1,-9,-1,-3,-7,-5,1,-3,6,-3,1,0,8,-8,-4,2,-1,-8,0,-4,-2,-7,3,-1,5,-10,2,-5,-4,1,-4,-5,-1,-2,4,1,17,-1,3,3,0,2,4,-1,4,3,0,2,2,-7,5,4,3,0,3,-6,1,-1,-3,-5,-5,-13,-5,-7,-6,-10,-5,-4,2,3,3,-6,-3,-1,1,6,10,9,4,5,7,-2,2,-4,-6,-2,0,1,2,-2,2,-6,1,-5,-1,-2,1,1,1,-2,1,-6,-5,-1,-6,-3,-2,4,-2,-3,-2,-4,3,-4,-3,2,-1,2,1,-3,-4,-10,-9,0,-4,-6,0,0,-6,-11,1,1,-8,6,1,1,-1,-9,-4,-3,-6,-5,2,-3,-1,-3,-7,2,-3,-4,-2,-2,-5,3,-2,-2,-1,1,-3,-5,3,1,3,-5,1,-1,5,-3,-3,-10,0,-10,-4,-7,3,7,1,4,-2,2,3,-16,0,4,2,0,3,-8,-2,-3,2,-6,-4,0,-2,7,-2,0,-4,4,2,10,-7,-3,-1,0,-5,-5,-1,-9,-16,-4,2,-1,8,-6,3,-6,10,5,4,-1,5,-7,6,-10,0,-2,2,3,4,18,8,14,0,4,5,2,0,7,-2,13,0,3,5,8,1,-2,12,10,9,-1,8,7,7,1,7,3,4,-1,7,-11,8,3,6,-2,19,5,13,-1,6,1,5,4,3,-19,63,-14,14,0,2,9,2,3,5,6,1,7,-2,15,7,10,-1,18,13,1,3,-1,4,2,4,9,2,10,11,5,0,3,-6,7,-4,98,-21,17,11,-2,16,3,13,5,7,19,8,4,0,2,5,5,1,-2,2,3,4,-5,2,7,7,-3,4,5,7,5,-2,2,3],[13192,4302,0,-4,-4,-2,-12,3,3,1,-2,2,2,0,-1,2,8,0,-3,3],[14618,4354,5,-1,-2,-5,-8,-2,-5,6,5,2],[14640,4442,0,-6,-4,-4,-9,-5,-15,-2,-6,-6,-14,-8,-3,-4,-1,-4,-7,-2,-3,-8,-12,-3,-7,-5,-3,-20,-1,7,-4,2,-7,-2,-3,12,32,20,6,11,7,4,4,6,7,4,15,22,6,0,15,-8],[13245,4283,3,-3,-8,3,3,7,2,-4]]};
+
+/* ---------- the conquest map: Japan and the south of the Korean peninsula, provinces filled in as they are taken ----------
+   Coastlines: natmap_data.js (Natural Earth). Each province is the land nearest to its seat (a little wobble so borders
+   look drawn by hand); Mimana's provinces only reach so far into the peninsula. Hidden regions stay plain until opened.
+   Provinces taken since the map was last opened spread in like ink. SAVE.mapSeen remembers how many were shown. */
+const NATP={伊豆:[34.95,138.95],相模:[35.42,139.25],武蔵:[35.9,139.45],安房:[35.05,139.95],上総:[35.4,140.2],
+  下総:[35.85,140.15],常陸:[36.45,140.35],下野:[36.6,139.75],上野:[36.4,138.95],甲斐:[35.65,138.6],
+  駿河:[35.15,138.45],遠江:[34.85,137.85],三河:[34.9,137.35],尾張:[35.2,136.9],美濃:[35.6,136.85],
+  信濃:[36.2,138.05],越後:[37.6,138.95],越中:[36.65,137.2],加賀:[36.4,136.6],越前:[35.9,136.2],
+  近江:[35.2,136.1],山城:[35.0,135.75],大和:[34.35,135.85],河内:[34.6,135.6],摂津:[34.8,135.35],
+  播磨:[34.95,134.75],備前:[34.8,134.05],備中:[34.8,133.6],安芸:[34.5,132.6],長門:[34.25,131.2],
+  淡路:[34.38,134.83],阿波:[33.9,134.3],讃岐:[34.22,133.95],伊予:[33.7,132.85],土佐:[33.4,133.35],
+  筑前:[33.6,130.55],豊後:[33.15,131.5],肥後:[32.65,130.8],日向:[32.2,131.35],薩摩:[31.6,130.4],
+  出羽:[39.3,140.2],陸奥:[39.7,141.3],佐渡:[38.05,138.4],能登:[37.1,136.85],飛騨:[36.15,137.2],
+  金官:[35.23,128.88],小加耶:[34.97,128.32],安羅:[35.27,128.42],多羅:[35.57,128.16],大加耶:[35.73,128.27],
+  後志:[42.85,140.55],石狩:[43.3,141.75],天塩:[44.6,142.0],北見:[43.9,143.9],根室:[43.35,145.2]};
+let NMCACHE=null;
+function nmData(){if(NMCACHE)return NMCACHE;const D=NATMAP_D,dec=r=>{const o=[[r[0]/100,r[1]/100]];for(let i=2;i<r.length;i+=2){const p=o[o.length-1];o.push([p[0]+r[i]/100,p[1]+r[i+1]/100]);}return o;};
+  const P=[];REGIONS.forEach((R,ri)=>R[1].forEach((n,j)=>{const c=NATP[n];if(c)P.push({n,region:R[0],ri,lv:ri*5+j+1,lat:c[0],lon:c[1],kr:R[0]==='任那'});}));
+  return NMCACHE={bb:D.bb,jp:D.jp.map(dec),kr:D.kr.map(dec),land:D.land.map(dec),P,px:{}};}
+function nmTaken(){return Math.min(winsN(),REGIONS.length*5);}// provinces taken in order: levels 1..n
+function nmOpen(){const b=(SAVE.best&&SAVE.best.nation)||1;return b>HIDDEN_FROM+5?55:b>HIDDEN_FROM?50:45;}// how many provinces are shown (hidden regions open later)
+// the pixel map: which province each pixel of land belongs to (-1 sea / other land, -2 the peninsula outside Mimana)
+function nmPixels(W,H){const M=nmData(),key=W+'x'+H;if(M.px[key])return M.px[key];
+  const[l0,b0,l1,b1]=M.bb,k=Math.cos(38*Math.PI/180),S=W/((l1-l0)*k),X=lon=>(lon-l0)*k*S,Y=lat=>(b1-lat)*S;
+  const mask=rings=>{const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.fillStyle='#fff';
+    for(const r of rings){g.beginPath();r.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.closePath();g.fill();}return g.getImageData(0,0,W,H).data;};
+  const mj=mask(M.jp),mk=mask(M.kr),id=new Int16Array(W*H).fill(-1);
+  const C=M.P.map(p=>[X(p.lon),Y(p.lat),p.kr]),jpI=[],krI=[];C.forEach((c,i)=>(c[2]?krI:jpI).push(i));
+  const reach=.62*S;// Mimana: about 0.6 degrees round each seat
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const o=y*W+x,a=o*4;const j=mj[a+3]>127,kk=!j&&mk[a+3]>127;if(!j&&!kk)continue;
+    const wx=x+Math.sin(y*.045+Math.cos(x*.031)*2.1)*S*.05,wy=y+Math.sin(x*.05+Math.cos(y*.027)*1.7)*S*.05;// hand-drawn wobble
+    let best=-1,bd=1e18;for(const i of(j?jpI:krI)){const dx=wx-C[i][0],dy=wy-C[i][1],d=dx*dx+dy*dy;if(d<bd){bd=d;best=i;}}
+    id[o]=kk&&bd>reach*reach?-2:best;}
+  return M.px[key]={id,W,H,X,Y,S};}
+function nmHex(h){const n=parseInt(h.slice(1),16);return[n>>16&255,n>>8&255,n&255];}
+function drawNatMap(cv){if(!cv||typeof NATMAP_D==='undefined')return;
+  const M=nmData(),dpr=Math.min(2,window.devicePixelRatio||1),cw=Math.max(240,cv.clientWidth||320),[l0,b0,l1,b1]=M.bb,asp=(b1-b0)/((l1-l0)*Math.cos(38*Math.PI/180));
+  const W=Math.round(Math.min(900,cw*dpr)),H=Math.round(W*asp);cv.width=W;cv.height=H;cv.style.height=Math.round(cw*asp)+'px';
+  const g=cv.getContext('2d'),PX=nmPixels(W,H),{id,X,Y,S}=PX,n=nmTaken(),open=nmOpen(),seen=Math.min(n,SAVE.mapSeen||0);
+  const fc=nmHex(flagC().c),paper=[205,191,154],paperK=[150,146,128],taken=i=>M.P[i].lv<=n,shown=i=>M.P[i].lv<=open;
+  const regDone=ri=>n>=ri*5+5;
+  // the base picture: sea, land, provinces (taken ones filled), borders
+  const img=g.createImageData(W,H),d=img.data,sea0=[24,42,60],sea1=[36,62,86];
+  const fill=(o,c,shade)=>{d[o]=c[0]*shade;d[o+1]=c[1]*shade;d[o+2]=c[2]*shade;d[o+3]=255;};
+  const newMask=[];
+  for(let y=0;y<H;y++){const t=y/H;for(let x=0;x<W;x++){const o=y*W+x,a=o*4,v=id[o];
+    if(v===-1){fill(a,[sea0[0]+(sea1[0]-sea0[0])*t,sea0[1]+(sea1[1]-sea0[1])*t,sea0[2]+(sea1[2]-sea0[2])*t],1);continue;}
+    if(v===-2){fill(a,paperK,.62);continue;}
+    const tex=.93+.07*Math.sin(x*.9+y*1.7)*Math.sin(x*.23-y*.31);
+    const r=x+1<W?id[o+1]:v,b=y+1<H?id[o+W]:v,edge=(r!==v&&r>=0)||(b!==v&&b>=0),redge=edge&&((r>=0&&M.P[r].ri!==M.P[v].ri)||(b>=0&&M.P[b].ri!==M.P[v].ri));
+    if(!shown(v)&&M.P[v].kr){fill(a,paperK,.62);continue;}// Mimana before it opens: plain like the rest of the peninsula
+    let c=paper;if(shown(v)&&taken(v)&&M.P[v].lv<=seen)c=fc;
+    const hideB=!shown(v)||(r>=0&&!shown(r))||(b>=0&&!shown(b));
+    fill(a,c,tex*(edge&&!hideB?(redge?.45:.72):1));}}
+  const base=document.createElement('canvas');base.width=W;base.height=H;base.getContext('2d').putImageData(img,0,0);
+  // provinces newly taken: their own layer, revealed by a spreading circle
+  const fresh=M.P.map((p,i)=>i).filter(i=>taken(i)&&M.P[i].lv>seen&&shown(i)).sort((a,b)=>M.P[a].lv-M.P[b].lv);
+  const layers=fresh.map(i=>{const c=document.createElement('canvas');c.width=W;c.height=H;const cg=c.getContext('2d'),im=cg.createImageData(W,H),dd=im.data;
+    for(let o=0;o<W*H;o++)if(id[o]===i){const x=o%W,y=(o/W)|0,tex=.93+.07*Math.sin(x*.9+y*1.7)*Math.sin(x*.23-y*.31),r=x+1<W?id[o+1]:i,b=y+1<H?id[o+W]:i,e=(r!==i&&r>=0)||(b!==i&&b>=0);
+      dd[o*4]=fc[0]*tex*(e?.72:1);dd[o*4+1]=fc[1]*tex*(e?.72:1);dd[o*4+2]=fc[2]*tex*(e?.72:1);dd[o*4+3]=255;}
+    cg.putImageData(im,0,0);return{c,x:X(M.P[i].lon),y:Y(M.P[i].lat)};});
+  const coast=(rings,col,w)=>{g.strokeStyle=col;g.lineWidth=w;g.lineJoin='round';for(const r of rings){g.beginPath();r.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.closePath();g.stroke();}};
+  const others=document.createElement('canvas');others.width=W;others.height=H;{const og=others.getContext('2d');og.fillStyle='rgb(93,91,80)';
+    for(const r of M.land){og.beginPath();r.forEach((p,i)=>i?og.lineTo(X(p[0]),Y(p[1])):og.moveTo(X(p[0]),Y(p[1])));og.closePath();og.fill();}}
+  const nextI=M.P.findIndex(p=>p.lv===n+1&&p.lv<=open),fs=Math.max(10,W/34);
+  const t0=performance.now(),STEP=650,DUR=1100;
+  const frame=now=>{if(!document.body.contains(cv))return;const t=now-t0;
+    g.drawImage(base,0,0);g.drawImage(others,0,0);
+    layers.forEach((L,k)=>{const u=clamp((t-k*STEP)/DUR,0,1);if(u<=0)return;const e=1-Math.pow(1-u,3);
+      g.save();g.beginPath();g.arc(L.x,L.y,e*S*2.2+1,0,Math.PI*2);g.clip();g.drawImage(L.c,0,0);g.restore();
+      if(u<1){g.strokeStyle=`rgba(255,240,200,${.8*(1-u)})`;g.lineWidth=W/200;g.beginPath();g.arc(L.x,L.y,e*S*.9,0,Math.PI*2);g.stroke();}});
+    coast(M.jp,'rgba(40,30,18,.85)',Math.max(1,W/700));coast(M.kr,'rgba(40,30,18,.6)',Math.max(1,W/800));coast(M.land,'rgba(30,28,22,.6)',Math.max(1,W/900));
+    // region names: gold once pacified
+    g.textAlign='center';g.textBaseline='middle';
+    REGIONS.forEach((R,ri)=>{if(ri*5+1>open)return;const ps=M.P.filter(p=>p.ri===ri);let x=0,y=0;ps.forEach(p=>{x+=X(p.lon);y+=Y(p.lat);});x/=ps.length;y/=ps.length;
+      const at={奥羽:[39.5,140.75],北海道:[43.6,142.9]}[R[0]];if(at){x=X(at[1]);y=Y(at[0]);}
+      const off={関東:[.35,.5],坂東:[.7,-.3],任那:[0,-.9],四国:[0,.25],九州:[-.1,.1],北陸:[-.2,-.35],畿内:[0,.15],山陽:[0,-.35],東海:[.1,.55],}[R[0]]||[0,0];
+      x+=off[0]*S;y+=off[1]*S;const done=regDone(ri);g.font=`800 ${fs}px "Shippori Mincho B1",serif`;
+      g.lineWidth=fs/4;g.strokeStyle='rgba(14,12,8,.8)';g.strokeText(rn(R[0]),x,y);g.fillStyle=done?'#ffd76a':'rgba(250,240,215,.9)';g.fillText(rn(R[0]),x,y);});
+    // the next province: a pulsing ring
+    if(nextI>=0){const p=M.P[nextI],x=X(p.lon),y=Y(p.lat),s=.5+.5*Math.sin(now/260);
+      g.strokeStyle=`rgba(224,85,58,${.55+.45*s})`;g.lineWidth=W/240;g.beginPath();g.arc(x,y,S*(.2+.08*s),0,Math.PI*2);g.stroke();
+      g.fillStyle='#e0553a';g.beginPath();g.arc(x,y,W/180,0,Math.PI*2);g.fill();}
+    requestAnimationFrame(frame);};
+  requestAnimationFrame(frame);
+  if(fresh.length&&SAVE.mapSeen!==n){SAVE.mapSeen=n;try{save();}catch(e){}}
+  return{n,open,done:REGIONS.filter((R,ri)=>regDone(ri)&&ri*5+5<=open).length};}
+function natMapHTML(){const n=Math.min(nmTaken(),nmOpen()),open=nmOpen(),reg=open/5;let done=0;for(let ri=0;ri<reg;ri++)if(n>=ri*5+5)done++;
+  return`<div class="natmap"><canvas id="nmCv"></canvas><div class="nmcap"><span>${TT('攻め取った国','Provinces taken')} <b>${n}</b> / ${open}</span><span>${TT('平定した地方','Regions pacified')} <b>${done}</b> / ${reg}</span></div></div>`;}
+
+/* ---------- 国盗り: own provinces, farm them for rice, raise troops, send them on, and take neighbouring provinces ----------
+   Time runs on without seasons (pause / x1 / x4 / x16 on the map; x1 = one day a second; a battle counts its own time).
+   Troops on the road take longer the further they go. Neighbouring enemy provinces may invade; you can meet them in
+   battle or leave it to the garrison. Every province has a fixed garrison; a battle is fought with the army you bring,
+   plus one 後詰め (reinforcement) you can call once. MP only builds. Saved in SAVE.kt (a new field).                 */
+const KT_KOKU={伊豆:7,相模:19,武蔵:67,安房:9,上総:38,下総:39,常陸:53,下野:37,上野:50,甲斐:23,駿河:15,遠江:26,三河:29,尾張:57,美濃:54,
+  信濃:41,越後:39,越中:38,加賀:36,越前:50,近江:78,山城:23,大和:45,河内:24,摂津:36,播磨:36,備前:28,備中:18,安芸:26,長門:13,
+  淡路:6,阿波:18,讃岐:17,伊予:37,土佐:20,筑前:50,豊後:42,肥後:34,日向:12,薩摩:28,出羽:32,陸奥:90,佐渡:4,能登:21,飛騨:6,
+  金官:22,小加耶:12,安羅:16,多羅:13,大加耶:20,後志:8,石狩:10,天塩:6,北見:6,根室:5};// 石高 (10,000 koku), roughly as recorded around 1600
+const KT_COST={sword:1,spear:1,archer:1.2,eng:1.2,cav:1.6,hcav:2,aka:3.2};// rice per soldier
+const KT_KINDS=['sword','spear','archer','cav','hcav','aka','eng'];
+const KT_SEA=[['安房','相模'],['佐渡','越後'],['淡路','播磨'],['淡路','阿波'],['淡路','摂津'],['讃岐','備前'],['伊予','安芸'],['豊後','伊予'],['筑前','長門'],['金官','筑前'],['後志','陸奥'],['能登','越中']];
+const KT_SPEEDS=[0,1,4,16];// days per second on the map
+const KT_PW={sword:1,spear:1,archer:1.1,eng:.6,cav:1.7,hcav:1.9,aka:3.2};// fighting worth, for battles left to the garrison
+const KT_FARM=[40,90,160];// rice to open more fields (3 steps, +30% each)
+const KT_MAXG=1000;// soldiers one province can hold
+let KT_GO=null;// the battle about to start (read by newGame)
+function ktLv(p){for(let ri=0;ri<REGIONS.length;ri++){const j=REGIONS[ri][1].indexOf(p);if(j>=0)return ri*5+j+1;}return 1;}
+function ktRegion(p){return provOf(ktLv(p)).region;}
+function ktSum(g){let n=0;for(const k in g||{})n+=g[k]||0;return n;}
+function ktAdd(a,b,s=1){for(const k in b)a[k]=Math.max(0,Math.round((a[k]||0)+s*(b[k]||0)));for(const k in a)if(!a[k])delete a[k];return a;}
+function ktProvs(){return REGIONS.flatMap(R=>R[1]);}
+// neighbours: provinces whose land touches on the map, plus the sea crossings
+let KT_ADJ=null;
+function ktAdj(){if(KT_ADJ)return KT_ADJ;const M=nmData(),[l0,b0,l1,b1]=M.bb,W=700,H=Math.round(W*(b1-b0)/((l1-l0)*Math.cos(38*Math.PI/180))),{id}=nmPixels(W,H),A={};
+  for(const p of M.P)A[p.n]=new Set();
+  for(let y=0;y<H-1;y++)for(let x=0;x<W-1;x++){const v=id[y*W+x];if(v<0)continue;for(const u of[id[y*W+x+1],id[(y+1)*W+x]])if(u>=0&&u!==v){A[M.P[v].n].add(M.P[u].n);A[M.P[u].n].add(M.P[v].n);}}
+  KT_LANDADJ={};for(const k in A)KT_LANDADJ[k]=new Set(A[k]);
+  for(const[a,b]of KT_SEA){A[a].add(b);A[b].add(a);}
+  return KT_ADJ=A;}
+// the hidden regions open once the region next to them is all yours
+function ktOpen(p){const r=ktRegion(p),kt=SAVE.kt;if(r==='任那')return REGIONS[7][1].every(q=>kt.own[q]);if(r==='北海道')return REGIONS[8][1].every(q=>kt.own[q]);return true;}
+function ktCanAttack(p){const kt=SAVE.kt;return !kt.own[p]&&ktOpen(p)&&[...ktAdj()[p]].some(q=>kt.own[q]);}
+// an enemy province's garrison: grows with how far it lies from Kanto; Mimana rides more, the Ainu shoot more
+function ktBase(p){const L=ktLv(p),st=(L-1)%5+1,r=ktRegion(p),n=Math.round((80+8*L)*(st>=4?1.15:1));
+  const w={sword:.3,spear:.25,archer:.25,cav:.14,eng:.06};if(L>=6)w.hcav=.08;if(r==='任那'){w.cav+=.12;w.sword+=.05;}if(r==='北海道'){delete w.cav;delete w.hcav;w.archer+=.25;}
+  let tot=0;for(const k in w)tot+=w[k];const g={};for(const k in w)g[k]=Math.round(n*w[k]/tot);return g;}
+function ktNew(fromNation){const own={},en={};let rice=120;
+  if(fromNation&&winsN()>0){// start from 全国戦: older provinces have more fields opened; the front line holds more troops
+    const n=Math.min(winsN(),45),ps=[];for(let L=1;L<=n;L++)ps.push(provOf(L).prov);
+    const nat=SAVE.nat||{},inc=nat.income||0;
+    ps.forEach((p,i)=>{const age=n-1-i,farm=age>=20?3:age>=10?2:age>=4?1:0;own[p]={g:{},farm};});
+    const A=ktAdj(),front=p=>[...A[p]].some(q=>!own[q]&&ktOpen0(q,own));
+    for(const p of ps){const kk=KT_KOKU[p]||10,f=front(p),tot=Math.round(f?60+kk*1.6+inc*2:15+kk*.5);
+      own[p].g=f?{sword:Math.round(tot*.3),spear:Math.round(tot*.25),archer:Math.round(tot*.25),cav:Math.round(tot*.15),eng:Math.round(tot*.05)}:{sword:Math.round(tot*.4),spear:Math.round(tot*.3),archer:Math.round(tot*.3)};}
+    // the army you were carrying in 全国戦 stands in the province you took last
+    const last=ps[ps.length-1],vet={};for(const u of((nat.camp&&nat.camp.units)||[]))if(KT_KINDS.includes(u.k))vet[u.k]=(vet[u.k]||0)+1;
+    ktAdd(own[last].g,ktSum(vet)>=60?vet:{sword:80,spear:60,archer:60,cav:30});for(const p of ps)own[p].g=ktCap(own[p].g);
+    // the castles you built in 全国戦 stand where they were
+    ktImportCastles(own);
+    rice=150+n*6+Math.round(inc*20);}
+  else own['伊豆']={g:{sword:80,spear:60,archer:50,cav:20},farm:0};
+  for(const p of ktProvs())if(!own[p])en[p]={g:ktBase(p)};
+  SAVE.kt={v:2,day:0,rice,own,en,move:[],fresh:null,log:[],spd:1};save();}
+function ktOpen0(q,own){const r=ktRegion(q);if(r==='任那')return REGIONS[7][1].every(x=>own[x]);if(r==='北海道')return REGIONS[8][1].every(x=>own[x]);return true;}
+// 全国戦's castles (kept per region in that region's map) -> longitude/latitude -> the province they stand in
+function ktImportCastles(own){const nat=SAVE.nat||{},recs=[];
+  for(const k in nat.past||{}){const r=nat.past[k];if(r&&r.camp)recs.push({kuni:r.kuni,level:r.level,camp:r.camp});}
+  if(nat.camp&&nat.camp.castles&&nat.camp.castles.length)recs.push({kuni:nat.camp.kuni,level:nat.camp.level,camp:nat.camp});
+  for(const r of recs){if(isLanding(r.level))continue;const sh=shapeOfKuni(r.kuni),b=sh.b,d=nationDims(r.level);
+    const geo=(x,y)=>[b[0]+x/d.W*(b[2]-b[0]),b[3]-y/d.H*(b[3]-b[1])];
+    for(const c of r.camp.castles||[]){const[lo,la]=geo(c.x,c.y),p=ktProvAt(lo,la),o=own[p];if(!o||!K[c.k])continue;(o.cs||(o.cs=[])).push({k:c.k,lo:+lo.toFixed(4),la:+la.toFixed(4)});}
+    const T=r.camp.trenches||[],where=[];T.forEach((t,i)=>{const[lo,la]=geo(t.x,t.y),p=ktProvAt(lo,la),o=own[p];if(!o)return;o.tr=o.tr||[];where[i]=[p,o.tr.length];o.tr.push({lo:+lo.toFixed(4),la:+la.toFixed(4),l:-1});});
+    T.forEach((t,i)=>{const w=where[i],q=where[t.l];if(w&&q&&w[0]===q[0])own[w[0]].tr[w[1]].l=q[1];});}
+  for(const p in own){if(own[p].cs&&own[p].cs.length>60)own[p].cs=own[p].cs.slice(-60);}}
+// saves from the first version counted seasons
+function ktFix(){const kt=SAVE.kt;if(!kt)return;if(kt.day==null){kt.day=(kt.season||0)*90;kt.v=2;}for(const m of kt.move)if(m.at==null){m.t0=kt.day;m.at=kt.day+5;}if(kt.spd==null)kt.spd=1;}
+function ktIncome(p){const o=SAVE.kt.own[p];return(10+(KT_KOKU[p]||10)*1.2)*(1+.3*(o?o.farm||0:0))/30;}// rice a day
+function ktIncomeAll(){let r=0;for(const p in SAVE.kt.own)r+=ktIncome(p);return r;}
+function ktDate(d){d=Math.floor(d??SAVE.kt.day);const y=1+Math.floor(d/360),m=1+Math.floor(d%360/30),dd=1+d%30;return EN()?`Year ${y}, ${m}/${dd}`:`${y}年目 ${m}月${dd}日`;}
+// distance between two province seats (km), and the days for troops to go between them (over your own land)
+function ktKm(a,b){const P=NATP[a],Q=NATP[b];const dy=(P[0]-Q[0])*111,dx=(P[1]-Q[1])*111*Math.cos((P[0]+Q[0])/2*Math.PI/180);return Math.hypot(dx,dy);}
+function ktSeaLink(a,b){return KT_SEA.some(([x,y])=>(x===a&&y===b)||(x===b&&y===a));}
+function ktLeg(a,b){return ktKm(a,b)+(ktSeaLink(a,b)?40:0);}
+// the shortest way from one of your provinces to 'to' (your own, or an enemy province next to yours), through your own provinces
+function ktRoute(from,to){const kt=SAVE.kt,A=ktAdj(),D={[from]:0},done=new Set();
+  for(;;){let u=null,du=1e9;for(const k in D)if(!done.has(k)&&D[k]<du){du=D[k];u=k;}if(u==null)return null;if(u===to)return du;done.add(u);
+    if(u!==from&&!kt.own[u])continue;for(const v of A[u]){if(!kt.own[v]&&v!==to)continue;const nd=du+ktLeg(u,v);if(D[v]==null||nd<D[v])D[v]=nd;}}}
+function ktDays(km){return Math.round(2+km/30);}
+function ktBattleSec(days){return Math.round(8+days*2.5);}// a reinforcement's arrival in battle (seconds)
+// time passes: rice, arrivals, a monthly refill of enemy garrisons, and (on the map) invasions
+function ktAdvance(days,onMap){const kt=SAVE.kt,d0=kt.day,d1=d0+days,ev=[];kt.day=d1;kt.rice+=ktIncomeAll()*days;
+  kt.move=kt.move.filter(m=>{if(m.at>d1)return true;if(kt.own[m.to]){ktAdd(kt.own[m.to].g,m.g);ev.push({arr:m});}else if(kt.own[m.from])ktAdd(kt.own[m.from].g,m.g);return false;});
+  for(let mo=Math.floor(d0/30)+1;mo<=Math.floor(d1/30);mo++){
+    for(const p in kt.en){const b=ktBase(p),g=kt.en[p].g,cap=ktSum(b)*1.5;if(ktSum(g)<cap)for(const k in b)g[k]=Math.round((g[k]||0)+b[k]*.05);}
+    if(onMap&&!ev.some(e=>e.inv)){const iv=ktInvasion(mo*30);if(iv)ev.push({inv:iv});}}
+  return ev;}
+// an enemy next door may march on one of your provinces when it feels strong enough (not in the first two months)
+function ktInvasion(day){const kt=SAVE.kt;if(day<60)return null;const c=[];
+  for(const q in kt.en){if(!ktOpen(q)||(kt.en[q].cd||0)>day)continue;const E=ktSum(kt.en[q].g);if(E<40)continue;
+    for(const p of ktAdj()[q]){if(!kt.own[p])continue;const G=ktSum(kt.own[p].g),r=E*.6/(G+20);if(r>.8)c.push({q,p,w:Math.min(.3,.07*r)});}}
+  for(const x of c.sort(()=>Math.random()-.5))if(Math.random()<x.w){const e=kt.en[x.q],g={};for(const k in e.g)g[k]=Math.floor(e.g[k]*.6);e.cd=day+120;return{from:x.q,to:x.p,g};}
+  return null;}
+function ktUnlocked(kd){const n=Object.keys(SAVE.kt.own).length;return kd==='hcav'?n>=5:kd==='aka'?n>=15:true;}
+
+/* ---------- the map screen ---------- */
+let KTV=null;// view: {s,ox,oy} screen px per map px and offset; selection and panel state
+function showKt(msg){
+  if(!SAVE.kt){ktNew(false);}ktFix();
+  const kt=SAVE.kt;KTV=KTV||{sel:null,mode:'info'};KTV.event=KTV.event||null;
+  openOv('kt',`<div class="card ktc">
+    <div class="kthd"><b>${TT('国盗り','Kunitori')}</b><span id="ktDate"></span><span id="ktRice"></span>
+      <span class="ktspd">${KT_SPEEDS.map((v,i)=>`<button data-s="${i}">${v?'×'+v:'II'}</button>`).join('')}</span></div>
+    <div class="ktmap"><canvas id="ktCv"></canvas><div class="ktzoom"><button id="ktZin">＋</button><button id="ktZout">－</button><button id="ktZall">${TT('全体','All')}</button></div></div>
+    <div id="ktE" class="kte" hidden></div>
+    <div id="ktP" class="ktp"></div>
+    <div class="row2"><button class="cb" id="ktBack">${TT('タイトルへ','Title')}</button></div>
+  </div>`);
+  $('#ktBack').onclick=()=>{SFX.click();save();showTitle();};
+  document.querySelectorAll('.ktspd button').forEach(b=>b.onclick=()=>{kt.spd=+b.dataset.s;save();SFX.click();ktHead();});
+  ktCanvas();ktRefresh();if(msg)ktMsg(msg);
+  if(kt.fresh){KTV.pulse={p:kt.fresh,t:performance.now()};kt.fresh=null;save();}
+  if(!Object.keys(kt.own).length)ktGameOver();else if(KTV.event)ktEvent();
+}
+function ktMsg(t){const el=$('#ktP .ktmsg');if(el)el.textContent=t;else toast(t);KTV.msg=t;}
+function ktHead(){const kt=SAVE.kt,d=$('#ktDate');if(!d)return;d.textContent=ktDate();
+  $('#ktRice').innerHTML=`${TT('米','Rice')} <b>${Math.floor(kt.rice)}</b> <small>(+${Math.round(ktIncomeAll()*30)}${TT('/月','/mo')})</small>`;
+  document.querySelectorAll('.ktspd button').forEach(b=>b.classList.toggle('on',+b.dataset.s===kt.spd&&!KTV.event));}
+function ktRefresh(){ktHead();ktPanel();ktPaint();}
+// the clock: runs while the map is open (stops for an invasion until you answer)
+function ktClock(dt){const kt=SAVE.kt;if(!kt||KTV.event||!kt.spd)return;const ev=ktAdvance(dt*KT_SPEEDS[kt.spd],true);ktHead();
+  let ch=0;for(const e of ev){if(e.arr){ch=1;toast(TT(`${pn(e.arr.from)}から${ktSum(e.arr.g)}人が${pn(e.arr.to)}に着いた`,`${ktSum(e.arr.g)} troops from ${pn(e.arr.from)} reached ${pn(e.arr.to)}`));}
+    if(e.inv){KTV.event=e.inv;ch=1;SFX.drums();}}
+  KTV.saveT=(KTV.saveT||0)+dt;if(KTV.saveT>3||ch){KTV.saveT=0;save();}
+  KTV.panT=(KTV.panT||0)+dt;if(ch||(KTV.panT>1&&KTV.mode==='info')){KTV.panT=0;ktPanel();}
+  if(ch){ktColours();if(KTV.event)ktEvent();}}
+// an enemy army is coming: meet it in battle, or leave it to the garrison
+function ktEvent(){const E=KTV.event,kt=SAVE.kt,el=$('#ktE');if(!E||!el)return;ktHead();
+  if(!kt.own[E.to]||!kt.en[E.from]){KTV.event=null;el.hidden=true;return;}
+  const G=kt.own[E.to].g,n=ktSum(E.g),gn=ktSum(G);
+  if(!gn){// nobody holds it: it falls at once
+    if(kt.en[E.from])ktAdd(kt.en[E.from].g,E.g,-1);ktLose(E.to,E.from,E.g,{});KTV.event=null;el.hidden=true;ktColours();ktRefresh();ktMsg(TT(`守る兵のいない${pn(E.to)}が${pn(E.from)}の軍に取られた`,`${pn(E.to)}, left unguarded, fell to ${pn(E.from)}`));return;}
+  const backs=Object.keys(kt.own).filter(q=>q!==E.to&&ktSum(kt.own[q].g)&&ktRoute(q,E.to)!=null);E.back=E.back??null;
+  el.hidden=false;el.innerHTML=`<h3>${TT('敵襲！','Invasion!')}</h3>
+    <p>${TT(`${pn(E.from)}の軍 <b>${n}</b>人が${pn(E.to)}（守り <b>${gn}</b>人）に攻めてきた。`,`An army of <b>${n}</b> from ${pn(E.from)} is marching on ${pn(E.to)} (held by <b>${gn}</b>).`)}</p>
+    <p><small>${ktGroupTxt(E.g)}</small></p>
+    <p>${TT('後詰め','Reinforcement')}</p><div class="ktchips"><button class="chip${!E.back?' on':''}" data-b="">${TT('なし','None')}</button>${backs.map(q=>`<button class="chip${q===E.back?' on':''}" data-b="${q}">${pn(q)} ${ktSum(kt.own[q].g)}・${ktBattleSec(ktDays(ktRoute(q,E.to)))}${TT('秒','s')}</button>`).join('')}</div>
+    <div class="ktbtns"><button class="cb hot" id="ktMeet">${TT('迎え撃つ（合戦）','Meet them in battle')}</button><button class="cb" id="ktAuto">${TT('守りに任せる','Leave it to the garrison')}<small>${TT('すぐに結果','result at once')}</small></button></div>`;
+  el.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{E.back=b.dataset.b||null;SFX.click();ktEvent();});
+  $('#ktMeet').onclick=()=>{SFX.click();el.hidden=true;KTV.event=null;ktDefend(E);};
+  $('#ktAuto').onclick=()=>{SFX.click();el.hidden=true;KTV.event=null;const r=ktAuto(E);ktColours();ktRefresh();ktMsg(r);};
+  el.scrollIntoView({block:'nearest'});}
+function ktGameOver(){const el=$('#ktE');if(!el)return;el.hidden=false;el.innerHTML=`<h3>${TT('すべての国を失った','Every province is lost')}</h3><div class="ktbtns"><button class="cb hot" id="ktAgain">${TT('伊豆からやり直す','Start again from Izu')}</button></div>`;
+  $('#ktAgain').onclick=()=>{ktNew(false);KTV=null;showKt();};}
+// the province colours, redrawn whenever ownership or the selection changes
+let KTC=null;
+function ktCanvas(){
+  const cv=$('#ktCv'),M=nmData(),[l0,b0,l1,b1]=M.bb,asp=(b1-b0)/((l1-l0)*Math.cos(38*Math.PI/180));
+  const BW=960,BH=Math.round(BW*asp),PX=nmPixels(BW,BH);
+  const dpr=Math.min(2,window.devicePixelRatio||1),cw=Math.max(260,cv.clientWidth||340),ch=Math.round(cw*.95);
+  cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr);cv.style.height=ch+'px';
+  KTC={cv,g:cv.getContext('2d'),PX,BW,BH,full:document.createElement('canvas'),dpr};KTC.full.width=BW;KTC.full.height=BH;
+  if(!KTV.s)ktFit(false);
+  // pan with one finger, pinch with two, tap to choose a province
+  const pts=new Map();let st=null;
+  cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.offsetX,e.offsetY]);
+    if(pts.size===1)st={x:e.offsetX,y:e.offsetY,ox:KTV.ox,oy:KTV.oy,t:performance.now(),moved:0};
+    else if(pts.size===2){const[a,b]=[...pts.values()];st={pinch:1,d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,s:KTV.s,mx:(a[0]+b[0])/2,my:(a[1]+b[1])/2,ox:KTV.ox,oy:KTV.oy};}};
+  cv.onpointermove=e=>{if(!pts.has(e.pointerId)||!st)return;pts.set(e.pointerId,[e.offsetX,e.offsetY]);const d=KTC.dpr;
+    if(st.pinch&&pts.size===2){const[a,b]=[...pts.values()],s=clamp(st.s*Math.hypot(a[0]-b[0],a[1]-b[1])/st.d,KTV.smin,KTV.smin*8);
+      KTV.ox=st.mx*d-(st.mx*d-st.ox)*s/st.s;KTV.oy=st.my*d-(st.my*d-st.oy)*s/st.s;KTV.s=s;ktClampV();ktPaint();return;}
+    if(!st.pinch){const dx=e.offsetX-st.x,dy=e.offsetY-st.y;if(Math.hypot(dx,dy)>6)st.moved=1;if(st.moved){KTV.ox=st.ox+dx*d;KTV.oy=st.oy+dy*d;ktClampV();ktPaint();}}};
+  cv.onpointerup=cv.onpointercancel=e=>{pts.delete(e.pointerId);if(st&&!st.pinch&&!st.moved&&e.type==='pointerup')ktTap(e.offsetX*KTC.dpr,e.offsetY*KTC.dpr);if(!pts.size)st=null;};
+  $('#ktZin').onclick=()=>ktZoom(1.5);$('#ktZout').onclick=()=>ktZoom(1/1.5);$('#ktZall').onclick=()=>{ktFit(true);ktPaint();};
+  ktColours();
+  let last=performance.now();const loop=now=>{if(!document.body.contains(cv))return;const dt=Math.min(.25,(now-last)/1000);last=now;ktClock(dt);if(KTV.pulse||SAVE.kt.move.length||KTV.event)ktPaint();requestAnimationFrame(loop);};requestAnimationFrame(loop);
+}
+function ktZoom(f){const W=KTC.cv.width,H=KTC.cv.height,s=clamp(KTV.s*f,KTV.smin,KTV.smin*8);KTV.ox=W/2-(W/2-KTV.ox)*s/KTV.s;KTV.oy=H/2-(H/2-KTV.oy)*s/KTV.s;KTV.s=s;ktClampV();ktPaint();}
+function ktClampV(){const W=KTC.cv.width,H=KTC.cv.height,w=KTC.BW*KTV.s,h=KTC.BH*KTV.s;
+  KTV.ox=w<W?(W-w)/2:clamp(KTV.ox,W-w,0);KTV.oy=h<H?(H-h)/2:clamp(KTV.oy,H-h,0);}
+// fit the whole map, or (all=false) your provinces and the ones you can attack
+function ktFit(all){const W=KTC.cv.width,H=KTC.cv.height,{X,Y}=KTC.PX,M=nmData();KTV.smin=Math.min(W/KTC.BW,H/KTC.BH);
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  if(!all)for(const p of M.P)if(SAVE.kt.own[p.n]||ktCanAttack(p.n)){const x=X(p.lon),y=Y(p.lat);x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}
+  if(all||x0>x1){KTV.s=KTV.smin;}else{const m=KTC.PX.S*.9;x0-=m;x1+=m;y0-=m;y1+=m;KTV.s=clamp(Math.min(W/(x1-x0),H/(y1-y0)),KTV.smin,KTV.smin*8);KTV.ox=W/2-(x0+x1)/2*KTV.s;KTV.oy=H/2-(y0+y1)/2*KTV.s;}
+  ktClampV();}
+function ktColours(){const{PX,BW,BH,full}=KTC,{id}=PX,M=nmData(),kt=SAVE.kt,fc=nmHex(flagC().c);
+  const st=M.P.map(p=>{const own=!!kt.own[p.n],op=ktOpen(p.n);
+    let c=own?fc:op?(ktCanAttack(p.n)?[214,168,136]:[205,191,154]):(p.kr?[93,91,80]:[176,168,146]);
+    if(KTV.sel===p.n)c=c.map(v=>Math.min(255,v*1.22+18));
+    if(KTV.pick&&KTV.pick.includes(p.n))c=[c[0]*.75+30,c[1]*.75+70,c[2]*.75+40];
+    return{c,hidden:!op};});
+  const g=full.getContext('2d'),img=g.createImageData(BW,BH),d=img.data,sea0=[24,42,60],sea1=[36,62,86];
+  for(let y=0;y<BH;y++){const t=y/BH;for(let x=0;x<BW;x++){const o=y*BW+x,a=o*4,v=id[o];let c,sh=1;
+    if(v===-1)c=[sea0[0]+(sea1[0]-sea0[0])*t,sea0[1]+(sea1[1]-sea0[1])*t,sea0[2]+(sea1[2]-sea0[2])*t];
+    else if(v===-2)c=[93,91,80];
+    else{const s_=st[v];c=s_.c;const r=x+1<BW?id[o+1]:v,b=y+1<BH?id[o+BW]:v,e=(r!==v&&r>=0)||(b!==v&&b>=0);
+      const mine=!!kt.own[M.P[v].n],diff=(r>=0&&!!kt.own[M.P[r].n]!==mine)||(b>=0&&!!kt.own[M.P[b].n]!==mine);
+      sh=(.93+.07*Math.sin(x*.9+y*1.7)*Math.sin(x*.23-y*.31))*(e&&!s_.hidden?(diff?.4:.7):1);}
+    d[a]=c[0]*sh;d[a+1]=c[1]*sh;d[a+2]=c[2]*sh;d[a+3]=255;}}
+  g.putImageData(img,0,0);
+  // the land of other countries
+  g.fillStyle='rgb(93,91,80)';const{X,Y}=PX;for(const r of M.land){g.beginPath();r.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.closePath();g.fill();}}
+function ktPaint(){if(!KTC)return;const{g,cv,PX,full}=KTC,{X,Y}=PX,M=nmData(),kt=SAVE.kt,s=KTV.s,ox=KTV.ox,oy=KTV.oy,W=cv.width,H=cv.height,dpr=KTC.dpr;
+  g.setTransform(1,0,0,1,0,0);g.fillStyle='#182a3b';g.fillRect(0,0,W,H);g.imageSmoothingEnabled=true;g.drawImage(full,ox,oy,KTC.BW*s,KTC.BH*s);
+  g.save();g.setTransform(s,0,0,s,ox,oy);g.strokeStyle='rgba(40,30,18,.85)';g.lineWidth=1.2/s*dpr;g.lineJoin='round';
+  for(const r of[...M.jp,...M.kr]){g.beginPath();r.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.closePath();g.stroke();}
+  // troops on the road
+  g.setLineDash([6/s*dpr,5/s*dpr]);g.strokeStyle='rgba(255,236,190,.9)';g.lineWidth=2.2/s*dpr;
+  for(const m of kt.move){const a=M.P.find(p=>p.n===m.from),b=M.P.find(p=>p.n===m.to);if(!a||!b)continue;g.beginPath();g.moveTo(X(a.lon),Y(a.lat));g.lineTo(X(b.lon),Y(b.lat));g.stroke();}
+  g.setLineDash([]);g.fillStyle='#ffd76a';g.strokeStyle='rgba(20,16,10,.9)';g.lineWidth=1.5/s*dpr;
+  for(const m of kt.move){const a=M.P.find(p=>p.n===m.from),b=M.P.find(p=>p.n===m.to);if(!a||!b)continue;const f=clamp((kt.day-m.t0)/Math.max(1,m.at-m.t0),0,1);
+    g.beginPath();g.arc(X(a.lon)+(X(b.lon)-X(a.lon))*f,Y(a.lat)+(Y(b.lat)-Y(a.lat))*f,5/s*dpr,0,Math.PI*2);g.fill();g.stroke();}
+  g.restore();
+  // names and troop counts
+  const fs=Math.round(11*dpr),big=s>KTV.smin*1.8;g.textAlign='center';g.textBaseline='middle';
+  for(const p of M.P){if(!ktOpen(p.n))continue;const x=X(p.lon)*s+ox,y=Y(p.lat)*s+oy;if(x<-30||y<-30||x>W+30||y>H+30)continue;
+    const own=kt.own[p.n],n=own?ktSum(own.g):ktSum(kt.en[p.n]&&kt.en[p.n].g),att=!own&&ktCanAttack(p.n);
+    if(!big&&!own&&!att)continue;
+    const lab=own?String(n):TT('約','~')+Math.round(n/10)*10;g.font=`800 ${fs}px "Shippori Mincho B1",serif`;const w=g.measureText(lab).width+8*dpr;
+    g.fillStyle=own?'rgba(20,16,10,.82)':att?'rgba(140,30,18,.88)':'rgba(60,50,40,.7)';g.beginPath();g.roundRect(x-w/2,y-fs*.7,w,fs*1.4,fs*.4);g.fill();
+    g.fillStyle=own?'#ffe9b0':'#fff';g.fillText(lab,x,y);
+    if(own&&own.cs&&own.cs.length){g.font=`800 ${Math.round(fs*.8)}px "Shippori Mincho B1",serif`;g.fillStyle='rgba(20,16,10,.85)';g.beginPath();g.roundRect(x+w/2+2*dpr,y-fs*.6,fs*1.2,fs*1.2,fs*.25);g.fill();g.fillStyle='#ffd76a';g.fillText(TT('城','C'),x+w/2+2*dpr+fs*.6,y);}
+    if(big){g.font=`700 ${Math.round(fs*.85)}px "Shippori Mincho B1",serif`;g.lineWidth=3*dpr;g.strokeStyle='rgba(14,12,8,.75)';g.strokeText(EN()?PROV_EN[p.n]||p.n:p.n,x,y-fs*1.25);g.fillStyle='#f6ecd4';g.fillText(EN()?PROV_EN[p.n]||p.n:p.n,x,y-fs*1.25);}}
+  // a ring round the selection, and a pulse on a newly taken province
+  const ring=(p,col,r)=>{const q=M.P.find(o=>o.n===p);if(!q)return;g.strokeStyle=col;g.lineWidth=3*dpr;g.beginPath();g.arc(X(q.lon)*s+ox,Y(q.lat)*s+oy,r,0,Math.PI*2);g.stroke();};
+  if(KTV.sel)ring(KTV.sel,'rgba(255,240,200,.95)',18*dpr);
+  if(KTV.pulse){const t=(performance.now()-KTV.pulse.t)/1000;if(t>4)KTV.pulse=null;else ring(KTV.pulse.p,`rgba(255,215,106,${1-t/4})`,(16+t*14)*dpr);}}
+function ktTap(x,y){const{PX,BW,BH}=KTC,mx=Math.floor((x-KTV.ox)/KTV.s),my=Math.floor((y-KTV.oy)/KTV.s);if(mx<0||my<0||mx>=BW||my>=BH)return;
+  let v=PX.id[my*BW+mx];
+  if(v<0){// a tap just off the coast: the nearest province seat close by
+    const M=nmData();let bd=(30*KTC.dpr/KTV.s)**2;for(let i=0;i<M.P.length;i++){const dx=PX.X(M.P[i].lon)-mx,dy=PX.Y(M.P[i].lat)-my,d=dx*dx+dy*dy;if(d<bd){bd=d;v=i;}}}
+  if(v<0)return;const p=nmData().P[v].n;if(!ktOpen(p))return;SFX.click();
+  if(KTV.pick&&KTV.pick.includes(p)&&KTV.onPick){const f=KTV.onPick;KTV.pick=null;KTV.onPick=null;f(p);ktColours();ktRefresh();return;}
+  KTV.sel=p;KTV.mode='info';KTV.pick=null;KTV.onPick=null;ktColours();ktRefresh();}
+
+/* ---------- the panel under the map ---------- */
+// rows of [−] n [+] for each kind of soldier; values kept in KTV.val
+function ktPicker(avail,init){KTV.val={...init};KTV.avail=avail;
+  return`<div class="ktpk">${KT_KINDS.filter(k=>(avail[k]||0)>0).map(k=>`<div class="ktrow" data-k="${k}"><span>${nm(K[k])}</span><small>/${avail[k]}</small><button data-d="-10">−</button><b>${KTV.val[k]||0}</b><button data-d="10">＋</button><button data-d="all">${TT('全','All')}</button><button data-d="0">0</button></div>`).join('')||`<p>${TT('兵がいません','No troops')}</p>`}</div>`;}
+function ktPickerBind(onChange){document.querySelectorAll('#ktP .ktrow button').forEach(b=>b.onclick=()=>{const k=b.closest('.ktrow').dataset.k,d=b.dataset.d,a=KTV.avail[k]||0;let v=KTV.val[k]||0;
+  v=d==='all'?a:d==='0'?0:clamp(v+(+d),0,a);KTV.val[k]=v;b.closest('.ktrow').querySelector('b').textContent=v;SFX.click();if(onChange)onChange();});}
+function ktCastleTxt(cs){const n={};for(const c of cs)n[c.k]=(n[c.k]||0)+1;return Object.keys(n).map(k=>nm(K[k])+n[k]).join(TT('・',', '));}
+function ktGroupTxt(g){return KT_KINDS.filter(k=>g[k]).map(k=>`${nm(K[k])}${g[k]}`).join(TT('・',', '))||TT('なし','none');}
+function ktPanel(){const P=$('#ktP'),kt=SAVE.kt,p=KTV.sel;if(!P)return;
+  if(!p){P.innerHTML=`<p class="ktmsg">${KTV.msg||TT('地図の国をタップ。赤い数字の国（となりの敵国）を攻め取れます。自分の国では田を開き、兵を雇い、となりの国へ送れます。','Tap a province. Red numbers are neighbouring enemy provinces you can attack. In your own provinces you can open fields, hire troops and send them on.')}</p>`;KTV.msg=null;return;}
+  const own=kt.own[p],adj=[...ktAdj()[p]];
+  const head=`<h3>${pn(p)}<small>${rn(ktRegion(p))}・${TT('石高','Yield')} ${KT_KOKU[p]||'?'}${TT('万石','0k koku')}</small></h3><p class="ktmsg"></p>`;
+  if(own&&KTV.mode==='info'){const inc=ktIncome(p),fl=own.farm||0,fc=KT_FARM[fl];
+    const out=kt.move.filter(m=>m.from===p||m.to===p);
+    P.innerHTML=head+`<p>${TT('兵','Troops')} <b>${ktSum(own.g)}</b>：${ktGroupTxt(own.g)}</p>
+      ${own.cs&&own.cs.length?`<p>${TT('城','Castles')}：${ktCastleTxt(own.cs)}${own.tr&&own.tr.length?TT('・堀','・moat'):''}</p>`:''}
+      <p>${TT('米','Rice')} +${Math.round(inc*30)}${TT('／月','/month')}・${TT('田','Fields')} ${'■'.repeat(fl)}${'□'.repeat(3-fl)}</p>
+      ${out.map(m=>`<p class="ktmv">${m.from===p?TT(`→ ${pn(m.to)}へ送っている：`,`→ marching to ${pn(m.to)}: `):TT(`← ${pn(m.from)}から向かっている：`,`← coming from ${pn(m.from)}: `)}${ktSum(m.g)}${TT('人','')}・${TT('あと','')}${Math.max(0,Math.ceil(m.at-kt.day))}${TT('日',' days left')}</p>`).join('')}
+      <div class="ktbtns">${fc!=null?`<button class="cb" id="ktFarm"${kt.rice<fc?' disabled':''}>${TT('田を開く','Open fields')}<small>${TT('米','rice')} ${fc}・${TT('取れ高','yield')} +30%</small></button>`:''}
+      <button class="cb" id="ktHire">${TT('兵を雇う','Hire troops')}<small>${TT('米で','with rice')}</small></button>
+      <button class="cb" id="ktSend"${Object.keys(kt.own).length>1&&ktSum(own.g)?'':' disabled'}>${TT('兵を送る','Send troops')}<small>${TT('遠いほど時間がかかる','further takes longer')}</small></button></div>`;
+    const fb=$('#ktFarm');if(fb)fb.onclick=()=>{if(kt.rice<fc)return;kt.rice-=fc;own.farm=fl+1;save();SFX.place();ktMsg(TT(`田を開いた。${pn(p)}の米 +${Math.round(ktIncome(p)*30)}／月`,`Fields opened. ${pn(p)} now yields ${Math.round(ktIncome(p)*30)} rice a month`));ktRefresh();};
+    $('#ktHire').onclick=()=>{KTV.mode='hire';SFX.click();ktPanel();};
+    $('#ktSend').onclick=()=>{SFX.click();KTV.pick=Object.keys(kt.own).filter(q=>q!==p&&ktRoute(p,q)!=null);KTV.onPick=to=>{KTV.mode='send';KTV.to=to;};ktColours();ktPaint();ktMsg(TT('送り先の自分の国（緑）をタップ。自分の国を通って行ける所だけ','Tap one of your provinces (green) to send them to — reachable through your own land'));};
+    return;}
+  if(own&&KTV.mode==='hire'){const room=KT_MAXG-ktSum(own.g),av={};for(const k of KT_KINDS)if(ktUnlocked(k))av[k]=Math.max(0,Math.min(room,Math.floor(kt.rice/KT_COST[k])));
+    P.innerHTML=head+`<p>${TT('米','Rice')} <b>${kt.rice}</b>・${TT('1人あたり','per soldier')}：${KT_KINDS.filter(k=>ktUnlocked(k)).map(k=>nm(K[k])+KT_COST[k]).join(' ')}${ktUnlocked('aka')?'':TT('（赤備は15国から）',' (Akazonae from 15 provinces)')}</p>`+ktPicker(av,{})+
+      `<p id="ktCostT"></p><div class="ktbtns"><button class="cb hot" id="ktDo">${TT('雇う','Hire')}</button><button class="cb" id="ktNo">${TT('やめる','Cancel')}</button></div>`;
+    const cost=()=>{let c=0;for(const k in KTV.val)c+=KTV.val[k]*KT_COST[k];return Math.ceil(c);};
+    const upd=()=>{const c=cost();$('#ktCostT').innerHTML=TT(`合計 <b>${ktSum(KTV.val)}</b>人・米 <b style="color:${c>kt.rice?'var(--shu)':'inherit'}">${c}</b>`,`Total <b>${ktSum(KTV.val)}</b> · rice <b>${c}</b>`);};
+    ktPickerBind(upd);upd();
+    $('#ktDo').onclick=()=>{const c=cost(),n=ktSum(KTV.val);if(!n)return;if(c>kt.rice){ktMsg(TT('米が足りません','Not enough rice'));return;}if(n>room){ktMsg(TT('この国に置ける兵は'+KT_MAXG+'人まで','A province holds up to '+KT_MAXG));return;}
+      kt.rice-=c;ktAdd(own.g,KTV.val);save();SFX.place();KTV.mode='info';ktMsg(TT(`${n}人を雇った`,`Hired ${n}`));ktRefresh();};
+    $('#ktNo').onclick=()=>{KTV.mode='info';SFX.click();ktPanel();};return;}
+  if(own&&KTV.mode==='send'){const to=KTV.to,km=ktRoute(p,to);if(km==null){KTV.mode='info';ktPanel();return;}const days=ktDays(km);
+    P.innerHTML=head+`<p>${TT(`${pn(to)}へ送る兵（約${Math.round(km)}km・着くまで${days}日）`,`Troops to send to ${pn(to)} (about ${Math.round(km)} km, ${days} days)`)}</p>`+ktPicker(own.g,{})+
+      `<div class="ktbtns"><button class="cb hot" id="ktDo">${TT('送る','Send')}</button><button class="cb" id="ktNo">${TT('やめる','Cancel')}</button></div>`;
+    ktPickerBind();
+    $('#ktDo').onclick=()=>{const n=ktSum(KTV.val);if(!n)return;ktAdd(own.g,KTV.val,-1);kt.move.push({from:p,to,g:{...KTV.val},t0:kt.day,at:kt.day+days});save();SFX.place();KTV.mode='info';ktMsg(TT(`${n}人が${pn(to)}へ向かった`,`${n} set out for ${pn(to)}`));ktRefresh();};
+    $('#ktNo').onclick=()=>{KTV.mode='info';SFX.click();ktPanel();};return;}
+  // an enemy province
+  const e=kt.en[p],n=ktSum(e&&e.g),can=ktCanAttack(p);
+  if(KTV.mode!=='attack'){P.innerHTML=head+`<p>${TT('守りの兵','Garrison')} <b>${TT('約','about ')}${Math.round(n/10)*10}</b>${TT('人','')}：${ktGroupTxt(Object.fromEntries(Object.entries(e?e.g:{}).map(([k,v])=>[k,Math.round(v/5)*5])))}</p>
+      ${can?`<div class="ktbtns"><button class="cb hot" id="ktAtk">${TT('攻める','Attack')}</button></div>`:`<p>${TT('となりに自分の国がないので、まだ攻められません','None of your provinces borders it yet')}</p>`}`;
+    const ab=$('#ktAtk');if(ab)ab.onclick=()=>{SFX.click();const from=adj.filter(q=>kt.own[q]).sort((a,b)=>ktSum(kt.own[b].g)-ktSum(kt.own[a].g));KTV.mode='attack';KTV.atk={from:from[0],back:null};ktPanel();};return;}
+  const A=KTV.atk,froms=adj.filter(q=>kt.own[q]),fo=kt.own[A.from];
+  P.innerHTML=head+`<p>${TT('どこから攻める？','Attack from')}</p><div class="ktchips">${froms.map(q=>`<button class="chip${q===A.from?' on':''}" data-f="${q}">${pn(q)} ${ktSum(kt.own[q].g)}</button>`).join('')}</div>
+    <p>${TT(`連れて行く兵（${pn(A.from)}から）`,`Army (from ${pn(A.from)})`)}</p>`+ktPicker(fo.g,A.val&&A.valFrom===A.from?A.val:fo.g)+
+    `<p>${TT('後詰め（戦いの途中で1回だけ呼べる援軍）','Reinforcement (call once during the battle)')}</p><div class="ktchips"><button class="chip${!A.back?' on':''}" data-b="">${TT('なし','None')}</button>${Object.keys(kt.own).filter(q=>q!==A.from&&ktSum(kt.own[q].g)&&ktRoute(q,p)!=null).map(q=>`<button class="chip${q===A.back?' on':''}" data-b="${q}">${pn(q)} ${ktSum(kt.own[q].g)}・${ktBattleSec(ktDays(ktRoute(q,p)))}${TT('秒','s')}</button>`).join('')}</div>
+    ${A.back?`<p><small>${TT(`${pn(A.back)}の兵の半分（最大300人）が、呼んでから約${ktBattleSec(ktDays(ktRoute(A.back,p)))}秒で駆けつける（遠いほど遅い）`,`Half of ${pn(A.back)}'s troops (up to 300) arrive about ${ktBattleSec(ktDays(ktRoute(A.back,p)))} s after you call (further is slower)`)}</small></p>`:''}
+    <p>${TT('敵','Enemy')} ${TT('約','about ')}${Math.round(n/10)*10}${TT('人','')}${ktEnemyBack(p)?TT(`。となりの敵国から後詰めが来るかもしれない`,`; enemy reinforcements may come from next door`):''}</p>
+    <div class="ktbtns"><button class="cb hot" id="ktGo">${TT('出陣','March')}</button><button class="cb" id="ktNo">${TT('やめる','Cancel')}</button></div>`;
+  A.val=KTV.val;A.valFrom=A.from;ktPickerBind();
+  document.querySelectorAll('#ktP [data-f]').forEach(b=>b.onclick=()=>{A.from=b.dataset.f;if(A.back===A.from)A.back=null;SFX.click();ktPanel();});
+  document.querySelectorAll('#ktP [data-b]').forEach(b=>b.onclick=()=>{A.back=b.dataset.b||null;SFX.click();ktPanel();});
+  $('#ktNo').onclick=()=>{KTV.mode='info';SFX.click();ktPanel();};
+  $('#ktGo').onclick=()=>{const army={...KTV.val};if(!ktSum(army)){ktMsg(TT('兵を選んでください','Choose some troops'));return;}ktMarch(p,A.from,army,A.back);};
+}
+// the enemy's reinforcement: a quarter of its strongest neighbouring province (up to 150)
+function ktEnemyBack(p){const kt=SAVE.kt;let best=null,bn=0;for(const q of ktAdj()[p])if(kt.en[q]&&ktOpen(q)){const n=ktSum(kt.en[q].g);if(n>bn){bn=n;best=q;}}
+  if(!best||bn<40)return null;const f=Math.min(.25,150/bn),g={};for(const k in kt.en[best].g)g[k]=Math.floor(kt.en[best].g[k]*f);return{from:best,g};}
+function ktBackOf(backFrom,to){const kt=SAVE.kt;if(!backFrom||!kt.own[backFrom])return null;const km=ktRoute(backFrom,to);if(km==null)return null;
+  const bg=kt.own[backFrom].g,bn=ktSum(bg),f=Math.min(.5,300/Math.max(1,bn)),back={from:backFrom,g:{},sec:ktBattleSec(ktDays(km))};for(const k in bg)back.g[k]=Math.floor(bg[k]*f);return ktSum(back.g)?back:null;}
+function ktMarch(target,from,army,backFrom){const kt=SAVE.kt,back=ktBackOf(backFrom,target),eb=ktEnemyBack(target);
+  KT_GO={target,from,bottom:from,top:target,army,back,eArmy:{...kt.en[target].g},eBack:eb,eBackAt:eb?30+ktBattleSec(ktDays(ktLeg(eb.from,target))):0};
+  SFX.drums();clearMid();startLevel(ktLv(target),false,'nation');}
+// meet an invasion: your garrison against their army, on that province's field
+function ktDefend(E){const kt=SAVE.kt,back=ktBackOf(E.back,E.to);
+  KT_GO={def:1,target:E.to,from:E.to,eFrom:E.from,bottom:E.to,top:E.from,army:{...kt.own[E.to].g},back,eArmy:{...E.g},eBack:null};
+  SFX.drums();clearMid();startLevel(ktLv(E.to),false,'nation');}
+// a province falls: the attackers hold it, your survivors fall back to the strongest neighbour you still have
+function ktLose(p,from,eg,surv){const kt=SAVE.kt;delete kt.own[p];kt.en[p]={g:{...eg},cd:kt.day+60};// the caller takes the army off its home province
+  const to=[...ktAdj()[p]].filter(q=>kt.own[q]).sort((a,b)=>ktSum(kt.own[b].g)-ktSum(kt.own[a].g))[0];if(to&&ktSum(surv))ktAdd(kt.own[to].g,surv);
+  for(const m of kt.move)if(m.to===p&&kt.own[m.from]){m.to=m.from;m.from=p;}return to;}
+function ktPow(g){let n=0;for(const k in g)n+=(g[k]||0)*(KT_PW[k]||1);return n;}
+function ktScale(g,f){const o={};for(const k in g){const v=Math.round(g[k]*f);if(v>0)o[k]=v;}return o;}
+// left to the garrison: worked out at once (defenders count 1.3 times)
+function ktAuto(E){const kt=SAVE.kt,G=kt.own[E.to].g,r=ktPow(E.g)/(ktPow(G)*1.3)*(.85+Math.random()*.3);
+  if(r<1){const left=ktScale(G,1-.5*r),back=ktScale(E.g,.3);kt.own[E.to].g=left;if(kt.en[E.from]){ktAdd(kt.en[E.from].g,E.g,-1);ktAdd(kt.en[E.from].g,back);}save();
+    return TT(`${pn(E.to)}の守りが敵を追い返した（残った兵 ${ktSum(left)}人）`,`${pn(E.to)} drove them off (${ktSum(left)} troops left)`);}
+  const eleft=ktScale(E.g,1-.5/r),surv=ktScale(G,.2);if(kt.en[E.from])ktAdd(kt.en[E.from].g,E.g,-1);const to=ktLose(E.to,E.from,eleft,surv);save();
+  return TT(`${pn(E.to)}を${pn(E.from)}の軍に奪われた${to&&ktSum(surv)?`。生き残り${ktSum(surv)}人が${pn(to)}へ退いた`:''}`,`${pn(E.to)} fell to ${pn(E.from)}${to&&ktSum(surv)?`; ${ktSum(surv)} survivors fell back to ${pn(to)}`:''}`);}
+
+/* ---------- the battlefield between two provinces ----------
+   A piece of real Japan cut out along the line from your capital (bottom) to the enemy's (top), so the field turns to
+   the way you march: from Sagami into Musashi you go north, from Kai into Musashi you go east. Coasts from the conquest
+   map; a crossing over the sea is a landing (ships). The world generator keeps a land way open if a bay cuts the line. */
+let KT_SHP=null;const KT_SEED0=70000;
+function ktDims(){const A=17e6,r=.72,r64=v=>Math.round(v/64)*64;return{W:r64(Math.sqrt(A*r)),H:r64(Math.sqrt(A/r))};}
+let KT_LANDADJ=null;// neighbours by land only (the sea crossings make a landing battle)
+function ktLandAdj(a,b){if(!KT_LANDADJ){ktAdj();}return KT_LANDADJ[a]&&KT_LANDADJ[a].has(b);}
+function ktSeed(a,b){const P=ktProvs();return KT_SEED0+P.indexOf(a)*100+P.indexOf(b);}
+function ktShape(own,enemy){const S=PROV_LL[own],T=PROV_LL[enemy],M=nmData(),hq=CFG.hq||90;
+  const la0=(S[1]+T[1])/2,lo0=(S[0]+T[0])/2,kx=111*Math.cos(la0*Math.PI/180),km=(lo,la)=>[(lo-lo0)*kx,(la-la0)*111];
+  const s=km(S[0],S[1]),t=km(T[0],T[1]),L=Math.hypot(t[0]-s[0],t[1]-s[1])||1,up=[(t[0]-s[0])/L,(t[1]-s[1])/L],rt=[up[1],-up[0]];
+  const loc=(lo,la)=>{const p=km(lo,la);return[p[0]*rt[0]+p[1]*rt[1],p[0]*up[0]+p[1]*up[1]];};
+  const rings=[...M.jp,...M.kr,...M.land].map(r=>{const q=r.map(p=>loc(p[0],p[1]));let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;for(const p of q){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);}return{q,x0,x1,y0,y1};});
+  const inP=(x,y,q)=>{let c=false;for(let i=0,j=q.length-1;i<q.length;j=i++){const a=q[i],b=q[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c;}return c;};
+  const landAt=(u,v)=>rings.some(r=>u>=r.x0&&u<=r.x1&&v>=r.y0&&v<=r.y1&&inP(u,v,r.q));
+  // a window: zoom z (1 = the capitals a fifth from the top), and both capitals moved sideways by f of the width
+  const win=(z,f)=>{const k=(H-hq-.18*H)/Math.max(L,70)/z,v1=-L/2+(H-hq)/k,v0=v1-H/k,uc=-f*W/k,u0=uc-W/2/k,u1=uc+W/2/k;return{k,b:[u0,v0,u1,v1],f};};
+  // can you walk from one capital to the other inside this window? (a coarse grid over the real coast)
+  const walk=w=>{const[u0,v0,u1,v1]=w.b,GX=48,GY=Math.round(48*H/W),cu=(u1-u0)/GX,cv=(v1-v0)/GY,land=new Uint8Array(GX*GY);
+    for(let j=0;j<GY;j++)for(let i=0;i<GX;i++)land[j*GX+i]=landAt(u0+(i+.5)*cu,v1-(j+.5)*cv)?1:0;
+    const cell=(u,v)=>clamp(Math.floor((v1-v)/cv),0,GY-1)*GX+clamp(Math.floor((u-u0)/cu),0,GX-1);
+    const a=cell(0,-L/2),z=cell(0,L/2);land[a]=land[z]=1;const seen=new Uint8Array(GX*GY),Q=[a];seen[a]=1;
+    while(Q.length){const c=Q.pop();if(c===z)return true;const x=c%GX,y=(c/GX)|0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=GX||ny>=GY)continue;const n=ny*GX+nx;if(!seen[n]&&land[n]){seen[n]=1;Q.push(n);}}}
+    return false;};
+  // a landing when the line between the capitals runs mostly over the sea (Sagami to Awa, Chikuzen to Mimana…)
+  let sea=0;const N=24;for(let i=1;i<N;i++){const f=i/N;if(!landAt(0,-L/2+L*f))sea++;}
+  // find a window with a real way round by land (round a bay rather than a thin causeway over it). When the line itself
+  // is mostly sea, only a short way round counts (Musashi-Kazusa round the head of the bay); otherwise it is a landing.
+  const seaLine=sea/(N-1)>.35;let naval=false,w=win(1,0);
+  if(!walk(w)){let got=null;
+    for(const z of seaLine?[1.4,2]:[1.4,2,2.8,4]){for(const f of[0,-.22,.22,-.38,.38]){const c=win(z,f);if(walk(c)){got=c;break;}}if(got)break;}
+    if(got)w=got;else naval=true;}
+  else if(seaLine&&!walk(win(1,0)))naval=true;
+  const[u0,v0,u1,v1]=w.b,k=w.k;
+  const clip=poly=>{const cut=(pts,inside,inter)=>{const out=[];for(let i=0;i<pts.length;i++){const a=pts[(i+pts.length-1)%pts.length],c=pts[i],ia=inside(a),ic=inside(c);if(ic){if(!ia)out.push(inter(a,c));out.push(c);}else if(ia)out.push(inter(a,c));}return out;};
+    const ix=x=>(a,c)=>[x,a[1]+(c[1]-a[1])*(x-a[0])/(c[0]-a[0])],iy=y=>(a,c)=>[a[0]+(c[0]-a[0])*(y-a[1])/(c[1]-a[1]),y];let q=poly;
+    for(const[f,g]of[[p=>p[0]>=u0,ix(u0)],[p=>p[0]<=u1,ix(u1)],[p=>p[1]>=v0,iy(v0)],[p=>p[1]<=v1,iy(v1)]]){if(!q.length)break;q=cut(q,f,g);}return q;};
+  const land=[];for(const r of rings){if(r.x1<u0||r.x0>u1||r.y1<v0||r.y0>v1)continue;const c=clip(r.q);if(c.length>=3)land.push(c);}
+  // shapePolys maps b with "latitude" downward: hand it the local (u, v) as (lon, lat). sx/tx: where the capitals stand across the field
+  return{kt:1,b:w.b,land,lakes:[],sx:.5+w.f,tx:.5+w.f,ty:(H-hq-L*k)/H,naval,landing:0,k,lo0,la0,kx,up,rt,zoom:w};}
+// field position <-> longitude/latitude, for castles kept between battles
+function ktToPx(lo,la){const K=KT_SHP,p=[(lo-K.lo0)*K.kx,(la-K.la0)*111],u=p[0]*K.rt[0]+p[1]*K.rt[1],v=p[0]*K.up[0]+p[1]*K.up[1];return[(u-K.b[0])*K.k,(K.b[3]-v)*K.k];}
+function ktToGeo(x,y){const K=KT_SHP,u=x/K.k+K.b[0],v=K.b[3]-y/K.k,p0=u*K.rt[0]+v*K.up[0],p1=u*K.rt[1]+v*K.up[1];return[K.lo0+p0/K.kx,K.la0+p1/111];}
+function ktProvAt(lo,la){let best=null,bd=1e9;for(const n in PROV_LL){const c=PROV_LL[n],d=((c[0]-lo)*Math.cos(c[1]*Math.PI/180))**2+(c[1]-la)**2;if(d<bd){bd=d;best=n;}}return best;}
+/* ---------- castles stay with their province ----------
+   Stone walls and up (as in 全国戦: wall, tamon, keep, great keep, shrines) and the moats right beside them are kept per
+   province in longitude/latitude (own.cs, own.tr), so they stand again whenever that province is fought over, whichever
+   way the field faces. Only what lies on this field is replaced at the end of a battle; the rest is kept as it was.   */
+function ktLoadCastles(){const kt=SAVE.kt,KT=S.kt;S.ktLoad={};const hy=HQP[0].y;
+  // where a castle stands on this field; behind your own camp's edge it is brought round to just in front of it
+  const place=(lo,la,p)=>{let[x,y]=ktToPx(lo,la);if(p===KT.bottom&&y>H-60){y=2*hy-y;}if(y>H-60&&y<H)y=H-60;if(x<40||y<40||x>W-40||y>H-40)return null;return[x,y];};
+  for(const p of Object.keys(kt.own)){const o=kt.own[p];if(!o||S.ktLoad[p])continue;const L=S.ktLoad[p]={cs:[],tr:[]};
+    (o.cs||[]).forEach((c,i)=>{const q=place(c.lo,c.la,p);if(!q||!K[c.k]||!passable(q[0],q[1]))return;const e=mk(0,c.k,q[0],q[1]);markBuilding(e,true);e.ktc=p+':'+i;L.cs.push(i);});
+    const map=new Map();(o.tr||[]).forEach((t,i)=>{const q=place(t.lo,t.la,p);if(!q)return;
+      if(tryTrench(q[0],q[1],t.l>=0&&map.has(t.l)?map.get(t.l):-1,true)==='ok'){map.set(i,S.trenches.length-1);S.trenches[S.trenches.length-1].ktc=p+':'+i;L.tr.push(i);}});}}
+// after a battle: castles loaded here stay where they were saved if still standing (gone if destroyed); new ones are added
+function ktKeepCastles(){const kt=SAVE.kt,L=S.ktLoad||{};
+  const alive=new Set(S.ents.filter(e=>e.ktc&&e.hp>0).map(e=>e.ktc)),aliveT=new Set(S.trenches.filter(t=>t.ktc&&!(t.hp!==undefined&&t.hp<=0)).map(t=>t.ktc));
+  for(const p in L){const o=kt.own[p];if(!o)continue;const tr=o.tr||[],keep=tr.map((t,i)=>!L[p].tr.includes(i)||aliveT.has(p+':'+i)),idx=[];let n=0;tr.forEach((t,i)=>{idx[i]=keep[i]?n++:-1;});
+    o.cs=(o.cs||[]).filter((c,i)=>!L[p].cs.includes(i)||alive.has(p+':'+i));o.tr=tr.filter((t,i)=>keep[i]).map(t=>({...t,l:t.l>=0&&idx[t.l]>=0?idx[t.l]:-1}));}
+  const cs=S.ents.filter(e=>e.side===0&&CASTLE2[e.kind]&&e.hp>0),near=(x,y)=>cs.some(c=>Math.hypot(c.x-x,c.y-y)<110+(c.k.hw||0));
+  const at=(x,y)=>{const g=ktToGeo(x,y);return{p:ktProvAt(g[0],g[1]),lo:+g[0].toFixed(4),la:+g[1].toFixed(4)};};
+  for(const e of cs){if(e.ktc)continue;const a=at(e.x,e.y),o=kt.own[a.p];if(!o)continue;(o.cs||(o.cs=[])).push({k:e.kind,lo:a.lo,la:a.la});if(o.cs.length>60)o.cs.shift();}
+  const where=new Map();S.trenches.forEach((t,i)=>{if(t.ktc||t.hp!==undefined&&t.hp<=0||!near(t.x,t.y))return;const a=at(t.x,t.y),o=kt.own[a.p];if(!o)return;o.tr=o.tr||[];where.set(i,[a.p,o.tr.length]);o.tr.push({lo:a.lo,la:a.la,l:-1});});
+  S.trenches.forEach((t,i)=>{const w=where.get(i),q=where.get(t.l);if(w&&q&&w[0]===q[0])kt.own[w[0]].tr[w[1]].l=q[1];});}
+
+/* ---------- in battle ---------- */
+// the enemy places its garrison from its fixed pool (no MP); returns false when nothing is left to place
+function ktEnemyDeploy(build){const P=S.epool;let tot=0;const w={};
+  for(const k in P)if(P[k]>0&&K[k]){w[k]=P[k]*(k==='eng'&&build?.2:1);tot+=w[k];}
+  if(!tot)return false;let r=Math.random()*tot,kind='sword';for(const k in w){r-=w[k];if(r<=0){kind=k;break;}}
+  const k=K[kind];let x,y;const asGuard=kind!=='eng'&&guardShare()<guardTarget();
+  if(asGuard)[x,y]=guardSpot();else if(kind==='archer')[x,y]=bestSpot(10,EZ0+60,EZ-30,true);else[x,y]=bestSpot(5,EZ0+(build?90:200)*(MODE==='local'?.5:1),EZ-30,Math.random()<.5);
+  if(crowded(1,kind,x,y))return true;
+  const n=Math.min(k.size,P[kind]);if(spawn(1,kind,x,y,n)){P[kind]-=n;if(asGuard)markGuard(SQID-1,[x,y]);}return true;}
+function ktTick(){if(!S||!S.kt||S.phase!=='battle'||S.over)return;const K_=S.kt;
+  if(K_.eBack&&!K_.eBackIn&&S.battleT>K_.eBackAt){K_.eBackIn=1;ktAdd(S.epool,K_.eBack.g);SFX.drums();toast(TT(`敵の後詰め ${ktSum(K_.eBack.g)}人が${pn(K_.eBack.from)}から駆けつけた！`,`${ktSum(K_.eBack.g)} enemy reinforcements arrive from ${pn(K_.eBack.from)}!`));}
+  // everyone on one side gone (and nobody left to place or on the way): that side has lost
+  K_.chkT=(K_.chkT||0)+1;if(K_.chkT%30===0&&S.battleT>5){const e=ktSum(ktAlive(1))+ktSum(S.epool)+(K_.eBack&&!K_.eBackIn?1:0),m=ktSum(ktAlive(0))+ktSum(S.pool)+(K_.back&&!K_.backIn?1:0);
+    if(!e){toast(TT('敵の兵はもういない！','The enemy army is gone!'));endGame(true);return;}if(!m){endGame(false);return;}}
+  if(K_.back&&K_.backT!=null&&!K_.backIn&&S.battleT>K_.backT){K_.backIn=1;ktAdd(S.pool,K_.back.g);SFX.drums();toast(TT(`後詰め ${ktSum(K_.back.g)}人が着いた！ 下のボタンから出せる`,`${ktSum(K_.back.g)} reinforcements have arrived! Place them with the buttons below`));updateButtons();}}
+function ktCallBack(){const K_=S.kt;if(!K_.back||K_.backT!=null)return;const sec=K_.back.sec||20;K_.backT=S.battleT+sec;SFX.horn();toast(TT(`後詰めを呼んだ。${pn(K_.back.from)}から${ktSum(K_.back.g)}人、${sec}秒ほどで着く`,`Reinforcements called: ${ktSum(K_.back.g)} from ${pn(K_.back.from)}, about ${sec} s away`));updateButtons();}
+function ktAlive(side){const g={};for(const e of S.ents){if(e.side!==side||e.hp<=0)continue;if(e.cargo)for(const u of e.cargo)if(KT_KINDS.includes(u.kind))g[u.kind]=(g[u.kind]||0)+1;if(e.k.build||e.k.ship||!KT_KINDS.includes(e.kind))continue;g[e.kind]=(g[e.kind]||0)+1;}return g;}
+// the battle is over: survivors go home (or hold the province taken); the battle's own time passes on the map
+function ktEnd(win,retreat){const kt=SAVE.kt,K_=S.kt,surv=ktAdd(ktAlive(0),S.pool),esurv=ktAdd(ktAlive(1),S.epool);
+  const sent=ktSum(K_.army)+(K_.backIn?ktSum(K_.back.g):0),home=kt.own[K_.from];
+  if(home)ktAdd(home.g,K_.army,-1);if(K_.backIn&&kt.own[K_.back.from])ktAdd(kt.own[K_.back.from].g,K_.back.g,-1);
+  if(K_.eBackIn&&kt.en[K_.eBack.from])ktAdd(kt.en[K_.eBack.from].g,K_.eBack.g,-1);
+  const res={win,def:!!K_.def,target:K_.target,from:K_.from,eFrom:K_.eFrom,sent,back:ktSum(surv),lost:Math.max(0,sent-ktSum(surv)),kills:S.kills,retreat:!!retreat};
+  if(K_.def){// your province was attacked
+    if(kt.en[K_.eFrom])ktAdd(kt.en[K_.eFrom].g,K_.eArmy,-1);
+    if(win){kt.own[K_.target].g=ktCap(surv);if(kt.en[K_.eFrom])ktAdd(kt.en[K_.eFrom].g,esurv);}
+    else{res.fled=ktLose(K_.target,K_.eFrom,esurv,surv);}}
+  else if(win){delete kt.en[K_.target];kt.own[K_.target]={g:ktCap(surv),farm:0};kt.fresh=K_.target;}
+  else{if(home)ktAdd(home.g,surv);kt.en[K_.target]={g:esurv,cd:kt.en[K_.target]&&kt.en[K_.target].cd};}
+  ktKeepCastles();
+  res.days=Math.round(Math.max(10,S.t/5));const r0=kt.rice;ktAdvance(res.days,false);res.rice=Math.round(kt.rice-r0);res.date=ktDate();
+  res.all=ktProvs().every(p=>kt.own[p]);
+  kt.log=[...(kt.log||[]).slice(-19),{t:Date.now(),target:K_.target,win:win?1:0,def:K_.def?1:0}];save();return res;}
+function ktCap(g){const o={};let left=KT_MAXG;for(const k of KT_KINDS){const v=Math.min(g[k]||0,left);if(v)o[k]=v;left-=v;}return o;}
+function showKtEnd(r){
+  const msg=r.def?(r.win?TT(`${pn(r.target)}を守り抜いた！ ${pn(r.eFrom)}の軍は退いた。残った兵 ${r.back}人。`,`${pn(r.target)} held! The army of ${pn(r.eFrom)} fell back. ${r.back} troops remain.`)
+      :TT(`${pn(r.target)}を奪われた。${r.fled&&r.back?`生き残り${r.back}人が${pn(r.fled)}へ退いた。`:''}`,`${pn(r.target)} was lost.${r.fled&&r.back?` ${r.back} survivors fell back to ${pn(r.fled)}.`:''}`))
+    :r.win?TT(`${pn(r.target)}を攻め取った！ 生き残った兵 ${r.back}人がこの国を守る。`,`${pn(r.target)} is yours! ${r.back} survivors hold it.`):TT(`${pn(r.target)}は落とせなかった。生き残った兵 ${r.back}人が${pn(r.from)}へ戻った。`,`${pn(r.target)} held out. ${r.back} survivors returned to ${pn(r.from)}.`);
+  openOv('end',`<div class="card">
+    <h2 style="color:${r.win?'var(--kin)':'var(--shu)'}">${r.win?TT('勝利','Victory'):r.retreat?TT('退却','Retreat'):TT('敗北','Defeat')}</h2>
+    <p>${msg}</p>
+    <div class="stats"><div><small>${r.def?TT('守った兵','Defenders'):TT('出陣','Marched')}</small>${r.sent}</div><div><small>${TT('失った兵','Lost')}</small>${r.lost}</div><div><small>${TT('撃破','Kills')}</small>${r.kills}</div><div><small>${TT('日付','Date')}</small>${r.date}</div></div>
+    <p>${TT(`戦いの間に${r.days}日たち、米 +${r.rice}`,`${r.days} days passed in the fighting. Rice +${r.rice}`)}</p>
+    ${r.all?`<p style="color:var(--kin);font-weight:800">${TT('すべての国を攻め取った！ 天下統一！','Every province is yours — the realm is united!')}</p>`:''}
+    <button class="big" id="goBtn">${TT('地図へ','To the map')}</button>
+    <button class="cb" id="toTitle">${TT('タイトルへ','Title')}</button></div>`);
+  $('#goBtn').onclick=()=>{SFX.click();KTV=KTV||{};KTV.sel=SAVE.kt.own[r.target]?r.target:SAVE.kt.own[r.from]?r.from:r.fled||null;KTV.mode='info';KTV.s=null;showKt();};
+  $('#toTitle').onclick=()=>{SFX.click();showTitle();};}
+
+// the first time: start from Izu alone, or from the provinces already taken in 全国戦 (全国戦 itself is not changed)
+function showKtStart(){const w=Math.min(winsN(),45);
+  openOv('kt',`<div class="card"><h2>${TT('国盗り','Kunitori')}</h2>
+    <p>${TT('自分の国で田を開いて米を集め、米で兵を雇い、となりの国へ攻め込む遊び方です。戦いの兵の数は最初に決まっていて、途中で増えるのは1回だけ呼べる後詰めだけ。MPは柵・堀・櫓などの築城にだけ使います。時間は止まらずに流れ（地図の右上で一時停止・早送り）、兵を送ると遠いほど時間がかかります。となりの敵国が攻めてくることもあります。','Open fields in your provinces for rice, hire troops with it, and invade the provinces next door. Your army is fixed when the battle starts; the only extra troops are one reinforcement you can call. MP is only for building fences, moats and towers. Time keeps running (pause or speed it up at the top right of the map); troops take longer to reach places further away. Enemies next door may invade.')}</p>
+    <p>${TT('全国戦の進み具合はそのまま残ります。','Your Conquest progress is not changed.')}</p>
+    <button class="big" id="ksIzu">${TT('伊豆一国から始める','Start from Izu alone')}</button>
+    ${w>0?`<button class="cb wide" id="ksNat">${TT(`全国戦で取った${w}国から始める`,`Start with the ${w} provinces taken in Conquest`)}</button>`:''}
+    <button class="cb" id="ksBack">${TT('戻る','Back')}</button></div>`);
+  $('#ksIzu').onclick=()=>{SFX.click();ktNew(false);KTV=null;showKt();};
+  const n=$('#ksNat');if(n)n.onclick=()=>{SFX.click();ktNew(true);KTV=null;showKt();};
+  $('#ksBack').onclick=()=>{SFX.click();showTitle();};}
+
 
 /* ---------- menus ---------- */
 const ov=$('#ov'),toastEl=$('#toast');let toastT,ovMode='title',helpBack=null;
 function toast(t){toastEl.textContent=t;toastEl.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove('on'),Math.min(4500,Math.max(2000,t.length*85)));}
-function endGame(win){
+function endGame(win,retreat){
+  if(S.kt){S.over=win?'win':'lose';clearMid();const r=ktEnd(win,retreat);(win?SFX.win:SFX.lose)();setTimeout(()=>showKtEnd(r),retreat?100:900);return;}
   S.over=win?'win':'lose';
   const wasTut=S.tut>=0;if(S.tut>=0)endTutorial(true);
   S.carry=null;clearMid();
@@ -5166,7 +5731,8 @@ async function startLevel(level,tut,mode,snap,replay){
   if(snap){restoreSnapshot(snap);homeView();running=true;toast(TT('合戦の途中から再開しました','Resumed the battle where you left off'));return;}
   running=true;if(tut)beginTutorial();else if(S.replay!=null)toast(TT(`${S.prov.region}の最終決戦をもう一度。城はあのときのまま`,`The final battle of ${rn(S.prov.region)} again — your castles stand as they were`));else toast((S.prov?TT(`${styled()}、${pn(S.prov.prov)}に攻め入る。`,`${styled()} invades ${pn(S.prov.prov)}. `):'')+TT(`敵は本陣のまわりを固めている（家紋：${nm(KAMON.find(k=>k.id===ENEMY_MON))}）`,`The enemy (crest: ${nm(KAMON.find(k=>k.id===ENEMY_MON))}) has fortified its HQ`));
   if(S.eStyle&&!snap&&!tut)setTimeout(()=>{if(S&&S.eStyle&&!S.landing)toast(S.eStyle==='gaya'?TT('任那の兵：鉄の小札鎧に羽飾りの冑、鎧をまとった馬。硬いが足は遅い','Gaya troops: iron lamellar, plumed helmets and armoured horses — tough but slow'):TT('蝦夷の兵：鎧はつけず素早い。毒矢に注意。騎馬はいない','Ainu warriors: no armour and quick on their feet. Beware poisoned arrows. No cavalry'));},8500);
-  if(S.landing&&!snap)setTimeout(()=>{if(S&&S.landing)toast(TT('任那は海の向こう。自陣の岸に船着場を建て、船に兵を乗せて対岸へ上陸せよ','Mimana lies across the sea. Build a dock on your shore, load your troops and land on the far coast'));},4200);
+  if(S.landing&&S.kt&&!snap)setTimeout(()=>{if(S&&S.landing)toast(TT(`${pn(S.kt.top)}は海の向こう。自陣の岸に船着場を建て、船に兵を乗せて対岸へ渡ろう`,`${pn(S.kt.top)} lies across the sea. Build a dock on your shore, load your troops and cross`));},4200);
+  else if(S.landing&&!snap)setTimeout(()=>{if(S&&S.landing)toast(TT('任那は海の向こう。自陣の岸に船着場を建て、船に兵を乗せて対岸へ上陸せよ','Mimana lies across the sea. Build a dock on your shore, load your troops and land on the far coast'));},4200);
   if(!tut&&S.replay==null&&WORLD.hill&&(MODE==='nation'?S.stage===1:S.level<=2))setTimeout(()=>{if(S&&S.phase==='build')toast(TT('自陣の道の先に高台がある。高台に櫓と弓を置き、手前に堀を掘ると守りやすい','There is high ground on the road ahead of your camp. Put towers and bows on it and dig a moat in front'));},4200);
 }
 function resume(){SFX.click();ov.hidden=true;document.body.classList.remove('home');running=true;}
@@ -5278,7 +5844,7 @@ function applyLang(){
   document.querySelectorAll('.ub').forEach(b=>{const kd=b.id.slice(3),n=b.querySelector('.nm');if(n)n.textContent=kd==='cmd'?TT('指揮','Command'):nm(K[kd]);});
   try{if(S){updateButtons();hud();}else{$('#lv').textContent=TT('第1陣','Battle 1');$('#phase').textContent=TT('陣地構築','Deploy');$('#rate').textContent=TT('+8.0/秒','+8.0/s');$('#modeBtn').textContent=TT('全軍突撃','All attack');$('#startBtn').innerHTML='<i class="ico ico-saihai"></i><span>'+TT('開戦する','Start battle')+'</span>';}}catch(e){}
 }
-const APP_VER='3D-2026.10.12-15';
+const APP_VER='3D-2026.10.17-4';
 // brush-written labels on the home screen (Japanese only): images of the calligraphy, text kept for screen readers
 function BW(k,t){return`<span class="wimg w-${k}" role="img" aria-label="${t}"></span>`;}
 function WT(k,ja,en){return EN()?en:BW(k,ja);}
@@ -5297,11 +5863,13 @@ function showTitle(){
         ${mb('nation',WT('nation','全国戦','Conquest'),TT('関東から天下統一<br>城と兵を引き継ぐ','Unite Japan from Kanto<br>castles & troops carry on'))}
       </div>
       ${first?`<button class="big" id="tTut">${TT('チュートリアルから始める','Start with the tutorial')}</button>
-        <div class="tiles t2"><button class="tile w2" id="tNew"><i class="ico ico-saihai"></i><span>${TT('飛ばして始める','Skip the tutorial')}</span></button></div>`
+        <div class="tiles t2"><button class="tile w2" id="tNew"><i class="ico ico-saihai"></i><span>${TT('飛ばして始める','Skip the tutorial')}</span></button>
+        <button class="tile w2" id="tKt"><i class="ico ico-map"></i><span>${TT('国盗り（新）','Kunitori (new)')}</span><small>${TT('田を開き兵を蓄え、決まった兵で国を取る','farm, raise troops, take provinces with a fixed army')}</small></button></div>`
       :`${mid&&mid.mode===m?`<button class="big" id="tMid"><i class="ico ico-play"></i>${TT('合戦の途中から','Resume battle')}<small>${lvName(m,mid.level)}</small></button>`:''}${b>1?`<button class="${mid&&mid.mode===m?'cb wide':'big'}" id="tCont"><i class="ico ico-play"></i>${WT('cont','続きから','Continue')}<small>${lvName(m,b)}</small></button>`:''}
         <div class="tiles t2">
           <button class="${b>1?'tile':'tile hot'}" id="tNew"><i class="ico ico-saihai"></i><span>${b>1?WT('new','はじめから','New campaign'):TT('出陣する','Go to war')}</span></button>
           <button class="tile" id="tTut"><i class="ico ico-tut"></i><span>${WT('tut','チュートリアル','Tutorial')}</span></button>
+          <button class="tile w2 hot" id="tKt"><i class="ico ico-map"></i><span>${TT('国盗り（新）','Kunitori (new)')}</span><small>${SAVE.kt?(ktFix(),ktDate())+TT('・','  ')+Object.keys(SAVE.kt.own).length+TT('国',' provinces'):TT('田を開き兵を蓄え、決まった兵で国を取る','farm, raise troops, take provinces with a fixed army')}</small></button>
           ${SAVE.nat&&SAVE.nat.past&&Object.keys(SAVE.nat.past).length?`<button class="tile" id="tPast"><i class="ico ico-map"></i><span>${WT('past','攻め取った国々','Conquered lands')}</span><small>${TT('絵巻・再戦','scrolls & replays')}</small></button>`:''}
           ${(SAVE.best.nation||1)>HIDDEN_FROM?`<button class="tile gold" id="tFin"><i class="ico ico-trophy"></i><span>${(SAVE.best.nation||1)>FINALE_LEVEL?WT('fin','全国平定の記録','Realm united'):TT('天下統一の記録','Unification')}</span></button>`:''}
         </div>`}
@@ -5323,6 +5891,7 @@ function showTitle(){
     
     $('#tMon').onclick=()=>{AU.unlock();SFX.click();showMonPicker(showTitle);};
     {const tp=$('#tPast');if(tp)tp.onclick=()=>{AU.unlock();SFX.click();showPast();};}
+    {const tk=$('#tKt');if(tk)tk.onclick=()=>{AU.unlock();SFX.click();if(SAVE.kt)showKt();else showKtStart();};}
     {const tf=$('#tFin');if(tf)tf.onclick=()=>{AU.unlock();SFX.click();showFinale(showTitle);};}
     document.querySelectorAll('.mode').forEach(el=>el.onclick=()=>{AU.unlock();SFX.click();m=el.dataset.m;SAVE.mode=m;save();draw();});
     const c=$('#tCont');if(c)c.onclick=()=>{clearMid();startLevel(b,false,m);};
@@ -5484,13 +6053,14 @@ function showPause(){
     <button class="big" id="pRes">${TT('再開する','Resume')}</button>
     <div class="row2"><button class="cb" id="oSnd">${sndLabel()}</button><button class="cb" id="oBgm">${bgmLabel()}</button></div>
     <div class="row2"><button class="cb" id="pHelp">${TT('遊び方','How to play')}</button><button class="cb" id="pFull">${TT('全画面','Fullscreen')}</button></div>
-    <div class="row2"><button class="cb" id="pRetry">${TT('この陣をやり直す','Restart battle')}</button><button class="cb" id="pTitle">${TT('タイトルへ','Title')}</button></div>
+    ${S.kt?`<div class="row2"><button class="cb" id="pRetreat">${TT('退却する（兵を連れて帰る）','Retreat (bring the troops home)')}</button></div>`:`<div class="row2"><button class="cb" id="pRetry">${TT('この陣をやり直す','Restart battle')}</button><button class="cb" id="pTitle">${TT('タイトルへ','Title')}</button></div>`}
   </div>`);
   $('#pRes').onclick=resume;
   $('#pHelp').onclick=()=>showHelp(showPause);
   $('#pFull').onclick=()=>{toggleFull();};
-  $('#pRetry').onclick=()=>startLevel(S.level,false);
-  $('#pTitle').onclick=()=>{if(S.tut>=0)endTutorial(true);SFX.click();showTitle();};
+  if(S.kt){$('#pRetreat').onclick=()=>{if(confirm(TT(S.kt.def?'退却しますか？ この国は敵に奪われ、生き残った兵はとなりの自分の国へ退きます':'退却しますか？ 生き残った兵は元の国へ戻り、この国は攻め取れません',S.kt.def?'Retreat? The province is lost and survivors fall back next door':'Retreat? Survivors return home and the province is not taken')))endGame(false,true);};}
+  else{$('#pRetry').onclick=()=>startLevel(S.level,false);
+  $('#pTitle').onclick=()=>{if(S.tut>=0)endTutorial(true);SFX.click();showTitle();};}
   bindSound();
 }
 function showEnd(win){
@@ -5675,13 +6245,17 @@ function updateButtons(){
     if(kd==='cmd'){b.classList.toggle('sel',mode==='cmd');ct.textContent=mode==='cmd'?(filt==='all'?TT('全兵種','all'):TT(K[filt].n+'のみ',nm(K[filt])+' only')):TT('囲んで移動','circle & go');continue;}
     const k=K[kd];
     b.hidden=!!(k.large&&!FOG)||((kd==='ship'||kd==='dock')&&!S.hasWater);
+    if(S.kt&&UNITK.includes(kd)){const left=S.pool[kd]||0;b.classList.remove('lock');b.hidden=false;
+      if(mode==='cmd'){b.classList.toggle('sel',filt===kd);b.classList.toggle('poor',false);ct.textContent=TT('で選ぶ','select');}
+      else{b.classList.toggle('sel',kd===sel&&mode==='place');b.classList.toggle('poor',left<=0);ct.textContent=TT('残','left ')+left;}continue;}
     const lock=lvOf(kd)&&!unlocked(kd);b.classList.toggle('lock',!!lock);
     if(lock){b.classList.remove('sel');ct.textContent=lockLabel(kd);continue;}
     if(mode==='cmd'){const u=UNITK.includes(kd)||kd==='ship';b.classList.toggle('sel',filt===kd);b.classList.toggle('poor',!u);ct.textContent=u?TT('で選ぶ','select'):'—';}
     else{b.classList.toggle('sel',kd===sel&&mode==='place');b.classList.toggle('poor',kd!=='up'&&S.mp[0]<k.cost);ct.textContent=kd==='up'?TT('レベル上げ','level up'):k.cost+(k.size>1?'×'+k.size:'');}
   }
-  $('#startBtn').disabled=S.phase!=='build';
-  $('#startBtn').innerHTML='<i class="ico ico-saihai"></i><span>'+(S.phase==='build'?TT('開戦する','Start battle'):TT('決戦中','In battle'))+'</span>';
+  const kb=S.kt&&S.kt.back&&S.phase==='battle'?S.kt:null;// 国盗り: the button calls the reinforcement once
+  $('#startBtn').disabled=S.phase!=='build'&&!(kb&&kb.backT==null);
+  $('#startBtn').innerHTML='<i class="ico ico-saihai"></i><span>'+(S.phase==='build'?TT('開戦する','Start battle'):kb&&kb.backT==null?TT('後詰めを呼ぶ','Call reinforcements'):kb&&!kb.backIn?TT('後詰め 到着待ち','Reinforcements coming'):TT('決戦中','In battle'))+'</span>';
   $('#modeBtn').textContent=S.sel.length?TT(`選択${S.sel.length}人を突撃`,`Charge (${S.sel.length})`):anyAdv()?TT('全軍 止まれ','All halt'):TT('全軍突撃','All attack');
   $('#spdBtn').textContent='×'+S.speed;
   updGenBar();
@@ -5695,7 +6269,7 @@ $('#modeBtn').onclick=()=>{
   else{for(const e of S.ents)if(e.side===0&&!e.k.build){e.st='adv';e.lord=null;}toast(TT('全軍突撃！','All attack!'));}
   updateButtons();
 };
-$('#startBtn').onclick=()=>{if(S&&S.phase==='build')startBattle();};
+$('#startBtn').onclick=()=>{if(S&&S.phase==='build')startBattle();else if(S&&S.kt&&S.phase==='battle')ktCallBack();};
 $('#spdBtn').onclick=()=>{if(!S)return;S.speed=S.speed===1?2:S.speed===2?3:1;updateButtons();};
 $('#panBtn').onclick=()=>{if(!S)return;SFX.click();if(mode==='pan')mode=prevMode;else{prevMode=mode;mode='pan';toast(TT('1本指で視点を動かせます。もう一度押すと戻ります','Move the view with one finger. Press again to go back'));}updateButtons();};
 $('#fitBtn').onclick=()=>{if(cam.z<=fitZ*1.05)homeView();else fitView();};
@@ -5844,6 +6418,9 @@ function place(x,y){
   const ok=k.build?canBuild(0,x,y,sel):(y>=PZ&&passable(x,y));
   if(!ok&&sel==='fence'&&inEnemyZone(y)){toast(TT('敵陣に柵を建てるには、その場に味方が'+ENEMY_FENCE_N+'人以上いて、近くの敵の2倍以上いること','To build a fence in the enemy camp you need '+ENEMY_FENCE_N+'+ of your soldiers there, at least twice the enemies nearby'));return false;}
   if(!ok){toast(k.build?TT('櫓・柵は自陣か、味方が3人以上いる場所に建てられる','Build in your camp or where 3+ of your troops stand'):TT('兵を出せるのは自陣（下の青い帯）の通れる場所だけ','Troops can only be placed on open ground in your camp'));return false;}
+  if(S.kt&&UNITK.includes(sel)){const left=S.pool[sel]||0;if(left<=0){toast(TT(nm(k)+'の兵はもう残っていません','No '+nm(k)+' left to place'));return false;}
+    const n=Math.min(k.size,left);if(crowded(0,sel,x,y)){toast(TT('ここは兵がいっぱいです。少し離れた所に置こう','Too crowded here. Place them a little further away'));return false;}
+    if(!spawn(0,sel,x,y,n))return false;S.pool[sel]-=n;SFX.place();S.fx.push({ty:'text',x,y:y-12,txt:TT('残','left ')+S.pool[sel],col:'#6b4d0e',life:.8,max:.8});updateButtons();return true;}
   if(S.mp[0]<k.cost){toast(TT('MPが足りません','Not enough MP'));return false;}
   if(sel==='gen'&&S.ents.filter(e=>e.side===0&&e.k.gen).length>=GEN_MAX){toast(TT('将軍は'+GEN_MAX+'人までです','Up to '+GEN_MAX+' generals'));return false;}
   if(crowded(0,sel,x,y)){toast(TT('ここは兵がいっぱいです。少し離れた所に置こう','Too crowded here. Place them a little further away'));return false;}
@@ -5958,101 +6535,8 @@ applyLang();
 if(SAVE.ie==null)showNanori({first:1,back:showTitle});else showTitle();
 try{const A=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
   if(A)A.addListener('backButton',()=>{if(ov.hidden){showPause();return;}if(ovMode==='pause')resume();else if(ovMode==='help')helpBack();else if(ovMode==='title')A.exitApp();else showTitle();});}catch(e){}
-if(/[?&]shots/.test(location.search))window.__k={setFog:v=>{FOG=v;},get WORLD(){return WORLD},snapshot,setEnemyStyle,buildSprites,fieldTo,REGIONS,toScreen,order,nearWater,ownDockNear,upgradeAt,passable,water,place,canBuild,setSel:v=>{sel=v;mode='place';},get EZ0(){return EZ0},step,render,buildBuildingSprites,BSPR,drawLord,lordTier,PAL4:PAL,trenchCost,SAVE,save,get E(){return E},get EW(){return EW},get EH(){return EH},get ER(){return ER},get SPR(){return SPR},UNITK,setGenCmd,assignRetinue,saveCampaign,campCarry,get EZ(){return EZ},get EZ0(){return EZ0},get HQP(){return HQP},drawRider,PAL,drawMon,myMon,get S(){return S},upgradeAt,computeFog,visAt,mk,tryTrench,spawn,startBattle,startLevel,cam,fitView,homeView,clampCam,order,fieldTo,elev,get PZ(){return PZ},get H(){return H},get W(){return W},get running(){return running},set running(v){running=v},R3,get blk(){return blk},get CELL(){return CELL},get GW(){return GW},K};
+if(/[?&]shots/.test(location.search))window.__k={setFog:v=>{FOG=v;},kt:{get V(){return KTV},set V(v){KTV=v},ktColours,ktRefresh,ktAdvance,ktMarch,ktDefend,ktAuto,ktEvent,ktInvasion,ktNew,ktAdj,ktEnd},get WORLD(){return WORLD},snapshot,setEnemyStyle,buildSprites,fieldTo,REGIONS,toScreen,order,nearWater,ownDockNear,upgradeAt,passable,water,place,canBuild,setSel:v=>{sel=v;mode='place';},get EZ0(){return EZ0},step,render,buildBuildingSprites,BSPR,drawLord,lordTier,PAL4:PAL,trenchCost,SAVE,save,get E(){return E},get EW(){return EW},get EH(){return EH},get ER(){return ER},get SPR(){return SPR},UNITK,setGenCmd,assignRetinue,saveCampaign,campCarry,get EZ(){return EZ},get EZ0(){return EZ0},get HQP(){return HQP},drawRider,PAL,drawMon,myMon,get S(){return S},upgradeAt,computeFog,visAt,mk,tryTrench,spawn,startBattle,startLevel,cam,fitView,homeView,clampCam,order,fieldTo,elev,get PZ(){return PZ},get H(){return H},get W(){return W},get running(){return running},set running(v){running=v},R3,get blk(){return blk},get CELL(){return CELL},get GW(){return GW},K};
 if(IMPORT_MSG)setTimeout(()=>toast(IMPORT_MSG==='ok'?TT('元の武家合戦の記録を引き継ぎました','Progress copied from the original Buke Kassen'):TT('元の武家合戦の記録は見つかりませんでした。新しく始めます','No progress found in the original Buke Kassen. Starting fresh')),600);
-/* 武家合戦3D: coastlines for the conquest map (Natural Earth 1:10m, public domain; tools/prep_natmap.py) */
-const NATMAP_D={"bb":[125.2,30.6,146.4,45.9],"jp":[[12978,3180,2,-5,-10,-13,-4,4,6,7,3,1],[13166,3248,3,-6,-6,-3,-18,-51,1,-6,4,-2,-4,-18,-7,-7,0,-6,-5,-12,-2,1,1,1,-8,0,-4,6,-6,2,-8,-2,-6,-9,9,-3,-3,-5,6,0,-7,-5,-5,-1,-3,-6,-4,-4,-15,-4,-13,-8,0,7,8,5,6,22,-5,10,-5,2,0,9,-6,1,-5,3,5,3,5,0,3,-2,0,-4,4,0,5,9,-3,6,-9,2,-5,-2,-11,-20,-1,-6,4,-12,6,-5,4,-1,-2,-8,-5,-3,-7,1,-3,6,-4,2,-23,0,-4,8,3,1,-9,7,4,1,7,-4,6,6,4,12,0,8,-7,8,-8,4,-1,3,2,5,5,-2,-4,4,2,7,-5,7,3,5,-2,4,7,4,3,-3,4,2,4,7,10,11,1,5,3,-2,1,1,0,4,6,7,-2,4,5,2,-4,4,11,10,-22,-3,12,7,6,1,-4,5,2,4,-17,13,-2,17,-4,2,-2,3,-7,1,-5,4,-9,-8,-2,1,9,-14,-3,-6,-8,-4,4,-4,5,0,4,4,7,0,3,-2,3,-8,-1,-9,-5,-4,-4,0,-5,-4,-5,-2,0,3,-4,2,0,4,6,3,2,4,-3,4,-9,0,-10,-4,-2,-1,-1,2,-7,-10,-5,-2,-6,-7,-4,0,7,9,-1,3,3,1,0,-1,3,3,-4,0,-5,9,-4,0,-9,12,-1,5,5,11,4,-1,1,-3,3,0,-2,-6,3,3,5,-4,-1,-7,-2,4,2,-6,-2,-2,6,-3,3,4,12,-3,-7,8,2,9,-7,4,-6,-2,-2,4,-3,-2,-2,1,-2,3,2,0,1,4,-3,-2,-2,4,-1,-5,-3,-1,-1,3,3,1,-4,5,-10,4,2,4,2,1,-2,4,1,5,1,1,5,-2,3,4,1,-4,2,-1,4,1,7,-1,1,-5,3,-2,-1,4,3,8,-8,5,3,3,3,-4,2,0,-3,7,1,4,9,-2,2,-2,-2,-3,8,-3,4,5,11,3,0,2,-4,-1,-4,3,7,4,0,2,4,0,1,4,3,-3,-1,-2,4,-1,0,-2,2,-2,3,3,7,0,1,7,-5,-3,-6,4,6,-2,9,6,3,4,-2,4,4,6,2,-1,4,3,8,0,5,5,8,1,7,0,-1,-2,4,1,2,-3,3,-1,4,5,6,3,-1,-10,-4,-5,5,-1,0,-6,5,-10,4,-3,27,-5,5,1,10,10,15,-1,6,-9,1,-10,-3,-7,-7,1,-1,-5,-3,-2,-9,1,0,-9,10,-2,4,2,5,-2,1,2,11,-3,8,3,-9,-14,3,-2,7,1,-4,-3,1,-1,5,-1,1,2,4,-3,2,3,1,-4,-8,0,-3,-7,6,-4,12,0,-10,-5,2,-2,-4,-4,4,0,0,-2,-7,-3,-5,0,-2,-9,-4,1,-8,-11,-4,-1,-1,-6,5,-3,-4,-2],[13469,3383,6,0,-17,-7,-1,-2,-17,-9,-5,-7,-4,-1,0,-3,-7,-8,-6,-22,-4,5,-3,0,-8,13,-6,2,-4,5,-17,3,-2,2,-13,-2,-14,-7,-3,-5,-7,-1,-5,-4,-1,3,-2,-2,-4,-3,2,-7,-5,-7,1,-3,-4,0,-2,-2,-7,-12,-5,2,-3,-2,-2,-3,0,-12,-4,-2,0,-4,7,-7,0,-2,-3,-1,-8,7,-4,-3,-2,2,-7,-3,-8,5,-8,-4,-1,5,9,11,-9,0,-6,3,1,-2,-5,1,0,-2,2,-1,-4,-1,-3,4,3,6,-3,5,-5,1,-4,-3,3,5,4,-2,3,2,-2,0,1,3,-2,1,4,2,-5,1,0,3,2,0,-4,3,-2,-1,-1,1,7,0,3,-3,2,4,4,2,-3,2,2,1,-3,0,-3,2,5,3,-11,-1,-4,2,4,2,0,4,-2,-2,-1,4,3,4,-4,3,-7,-1,-13,-5,-5,-5,-3,1,1,2,-10,-4,8,6,8,1,-1,2,1,1,9,1,15,7,9,9,10,4,8,6,3,18,4,1,2,9,9,6,6,1,1,4,-3,1,3,0,1,2,9,-9,5,-9,5,-3,19,6,19,-2,4,1,9,10,0,10,-8,8,11,-4,3,1,24,15,7,-3,7,0,6,4,3,-7,2,1,3,3,5,-4,-1,-3,8,-4,6,0,4,-4,12,1,5,3,-2,-4,2,1,4,2,-2,-5,-2,-1,3,0,-3,-7,-2,-8,1,-3,4,1,6,-6,0,-4,-5,-6,7,0],[13312,3611,0,-5,-4,-4,0,6],[13307,3613,2,-2,-3,-1,-2,-4,-3,2,-2,0,0,-4,-4,2,9,7],[13342,3445,-8,-10,-6,-3,-1,2,4,3,-5,1,2,2,-3,3,-2,-5,-5,-4,3,-3,-2,-3,-3,1,-7,-4,-1,1,-1,6,4,3,0,-4,2,1,4,4,-8,3,0,-4,-3,-2,-15,-2,-6,-2,-1,2,-8,-4,1,-3,-11,-4,-3,0,-2,2,-6,-3,1,3,-6,7,0,4,3,1,-1,1,-8,0,-3,2,-6,-2,-13,-11,2,-7,-4,-6,1,-12,-7,-5,2,-10,-10,-6,-2,1,4,4,3,0,-1,4,-13,5,-12,8,-4,-3,2,0,-5,0,4,6,-8,3,-11,-3,-4,1,-1,-5,-10,4,-4,-5,-2,2,-3,-1,0,5,-6,-8,-7,-4,-4,3,-4,-2,-1,5,-7,5,-6,2,-12,-14,-4,3,4,7,-1,4,-3,2,-2,4,6,7,-5,10,2,6,14,4,-10,2,3,3,2,1,3,-3,6,1,6,-1,1,-3,3,-1,2,2,-2,4,8,1,3,-3,-5,1,-2,-5,11,2,1,3,8,0,0,3,5,5,-1,2,9,5,2,4,4,1,0,4,6,-1,2,2,7,1,11,3,1,5,16,12,2,-1,1,4,18,12,8,3,9,12,12,8,11,3,3,10,-4,3,1,2,11,1,-2,2,11,4,13,1,0,2,6,1,6,5,7,-4,6,2,2,-2,7,2,2,-1,-8,-4,1,-3,14,-5,4,4,14,4,15,-3,51,5,5,4,7,1,18,7,5,-1,21,1,4,-2,2,1,7,-2,6,5,10,4,-1,1,15,3,6,-6,2,-4,-5,-1,-7,-11,2,-1,4,5,2,-3,-3,0,0,-2,6,-3,2,1,2,-1,-2,-6,3,4,5,-1,0,3,-5,0,-1,3,8,2,4,4,-1,-3,3,-1,0,-4,3,3,0,-5,2,-1,5,1,7,4,2,-1,-5,-4,10,0,3,4,-3,-1,-3,3,5,2,5,-4,4,0,-3,5,5,0,-4,6,11,-3,6,2,-2,10,6,4,3,-7,-2,-2,2,-2,2,0,3,12,-3,4,-8,7,0,5,-3,3,0,3,4,2,12,18,0,5,8,1,18,13,31,34,7,14,1,11,-5,7,0,9,-4,0,-1,1,6,14,-1,4,6,4,10,4,5,-1,14,5,4,4,15,3,4,1,5,-2,0,-6,-10,-2,-1,-5,3,-4,-4,-5,-6,1,-6,-2,-4,-6,-6,-4,-6,4,0,1,-6,-6,0,-5,-2,-1,-1,-3,7,0,5,-3,7,5,0,-13,-6,-10,2,-3,15,-8,14,0,8,4,3,10,4,3,45,13,15,7,5,4,6,-1,8,2,20,14,11,6,11,14,9,8,6,16,5,7,21,13,15,3,8,5,13,11,6,30,11,20,17,17,12,31,3,13,8,7,5,17,1,23,-3,9,-11,8,-4,-1,-4,-3,-8,0,-5,6,1,3,-2,4,0,2,12,-5,5,2,11,15,3,11,1,12,-7,6,-2,15,-1,2,-6,0,0,2,7,4,7,9,5,3,7,-3,8,5,4,-1,3,3,5,22,5,-4,0,3,4,1,-1,1,-7,0,-3,7,-5,1,1,2,6,1,2,12,12,-9,9,5,8,-4,1,-15,3,-14,3,-5,10,-1,5,4,2,6,-3,1,2,1,3,5,6,-2,3,-3,0,-2,8,-2,7,-5,6,4,4,8,2,12,3,5,-7,10,-5,2,-1,-4,-9,-6,-8,2,-3,-3,-9,-1,-5,-3,-4,2,3,18,4,9,6,6,1,6,9,-5,11,-3,8,-7,9,-4,10,2,8,6,-7,-27,0,-13,5,-36,5,-11,4,-3,5,1,11,-10,14,-19,1,-2,-3,-5,7,-4,-3,-2,-1,-5,11,-7,1,-5,-2,-3,6,-15,-4,-16,1,-1,7,4,-1,-6,4,-3,-5,-6,-7,-3,5,-1,4,3,2,-1,-3,-5,-5,-1,-4,-2,2,-1,-5,-5,7,2,0,-2,-7,-4,2,-1,-3,0,0,-3,5,0,-2,-4,-5,0,1,-2,4,0,-1,-2,-8,-2,7,-5,-7,0,-2,-1,5,-3,-5,0,3,-4,-12,2,2,-5,-4,-2,2,-2,-5,2,1,3,-5,-1,3,-14,-3,4,-5,-1,0,-6,-7,-5,5,-4,0,-3,-3,1,-8,-5,8,-3,-7,-6,4,-4,2,2,2,-3,-1,-4,-3,3,-2,-5,2,-1,-4,-2,2,-4,3,1,3,-1,-3,0,-2,-2,3,-1,1,-6,-1,-3,-7,3,1,2,-4,2,0,4,-13,3,-10,-2,-3,-7,-2,0,-2,5,-5,-1,-3,-5,3,0,0,-2,-6,-5,-5,-7,-5,-20,1,-8,9,-16,-1,-5,2,-3,1,-27,-3,-25,-5,-16,-16,-8,-6,-12,-5,-15,-7,-11,0,-17,-6,-6,2,-12,7,-15,19,-27,4,-2,-2,-3,-3,2,-11,-3,0,2,-6,-1,-18,-12,-6,-8,-3,-11,2,-8,-3,-12,-3,0,-3,-5,-3,2,-5,-4,-11,1,-3,-4,-11,-6,-3,-8,-3,-3,-9,-1,-3,4,-5,2,-1,2,12,2,-3,3,1,3,-3,10,0,4,5,2,0,3,-2,4,-7,3,4,1,2,5,5,-2,1,6,11,5,9,10,-1,0,-1,3,-10,7,-6,-1,2,-2,-4,-3,-5,3,-1,-3,-3,3,-2,-4,-2,5,3,-11,-1,-3,-8,-5,-7,-1,5,-2,0,-3,-5,0,2,-2,-1,-8,10,-5,-2,-4,-6,-2,2,-5,-7,-1,-2,7,2,1,-8,10,-5,-1,-8,2,-23,-6,-3,-2,1,-10,-4,1,-4,-7,0,-3,3,0,-2,-5,5,-6,0,-7,-4,-1,-5,-8,-5,-5,-1,-8,-5,1,-10,-6,-9,9,-1,4,3,2,-2,6,0,7,4,3,-3,7,3,5,12,0,-11,9,-10,2,-15,-4,-5,-7,1,-4,0,2,2,1,-2,-4,-14,-6,-4,-6,1,-3,-5,-6,-7,-6,-3,-7,4,-5,-26,8,-8,0,-10,-3,-11,3,-13,1,-12,-1,-29,-8,-12,-1,5,8,4,-3,17,10,2,-4,1,4,3,0,-3,1,1,3,-4,4,-9,0,-2,-5,0,2,-15,0,-6,5,2,9,-6,-14,4,-5,1,-3,-11,4,-2,3,2,7,-3,3,-1,8,6,9,1,5,-2,0,-2,-5,-2,4,1,-5,-3,0,-1,2,0,-3,-7,1,-7,-5,-2,-9,-11,-12,-1,-9,3,-3,0,-5,8,-1,12,-8,10,-2,3,-5,4,-1,0,-5,-4,-1,3,-1,-3,-3,2,-6,-6,-2,-5,0,-2,2,7,-1,1,5,-4,0,0,-2,-4,2,-7,-1,2,3,-1,0,-6,-2,2,-1,-6,-4,-4,2,-1,-2,-4,1,-1,-4,-4,1,-13,-6,-4,-3,1,-6,-3,-1,-3,3,-3,-3,6,-6,-1,-5,-2,0,-2,2,-3,-2,3,-3,-2,0,-7,-5,-4,0,-12,-24,-4,-3,2,-3,-8,-6,-7,-2,-3,-4,1,-3,-3,-1,1,5,-13,1,-20,6,-5,4,-1,5,-5,3,1,2,6,1,-1,1,-8,6,-8,1,-11,11,-6,-1,0,2,2,1,-1,2,3,2,-2,1,0,2,8,4,-1,3,-6,2,4,4,-1,3,7,0,0,1,-7,9,-6,3,5,5,10,2,16,14,0,4,4,4,0,13,-3,-1,-4,3,-5,0,0,-3,-4,0,0,2,-3,-1,2,-4,-5,2,-1,-2,-13,-3,-9,2,-22,13,-19,0,-3,-1,-2,0,-1,3,-7,-6,-5,1,-2,-3,-14,2,1,-2,6,-1,-12,-6,3,0,-4,-4,-7,-2,-3,2,-6,1,-5,-2,0,-3,6,3,5,-1,-4,-6,-3,1,-4,-8,-12,1,1,-2,-4,0,-7,9,-25,-11,5,6,-2,1,-7,-2],[14577,4339,5,-2,-14,-6,-5,0,-6,-5,-5,-9,1,0,-8,1,-15,-1,-7,-3,-9,-1,-2,-4,5,-1,-9,-5,-8,1,3,-3,-2,-2,-11,-1,-6,3,0,3,-4,1,-6,-7,4,-5,-4,-1,-14,3,-14,-1,-7,2,-3,4,-4,0,-28,-7,-15,-9,-31,-24,-23,-28,-3,-9,1,-12,-9,-18,-12,10,-16,8,-20,5,-30,11,-18,10,-11,9,-11,1,-13,9,-11,4,-18,2,-21,-6,-34,-17,-11,-9,-5,3,6,1,-7,3,-2,5,-17,14,-4,2,-19,0,-8,-4,-9,-11,-4,-8,0,-9,26,-15,16,2,6,-3,7,-8,13,-11,14,-4,9,-7,-8,-2,-11,-7,-19,6,-11,-2,2,6,-7,2,-6,-9,-15,-6,-2,-4,0,-11,-16,-5,-6,-8,-7,2,-4,-1,-6,3,-6,14,10,22,5,1,-1,6,3,4,0,7,-12,13,-10,3,-5,5,-9,6,-2,8,8,14,-1,16,8,5,13,1,9,6,4,6,10,-5,10,13,14,11,-3,8,-15,13,-1,4,3,8,7,0,6,4,31,-17,21,3,1,-6,15,-3,13,6,12,12,2,9,-8,11,3,6,-5,13,5,8,14,5,11,10,3,13,-1,21,9,14,4,18,-4,29,-18,32,1,4,7,9,-1,8,3,3,2,-5,13,2,6,3,1,5,5,2,12,-12,16,-10,32,-28,9,-14,35,-29,32,-20,5,-1,6,-6,14,-7,23,-6,-10,-1,5,-7,21,-1,6,3,12,0,5,-2,-4,-3,-2,-5,4,-1,7,9,2,1,2,-1,2,-7,10,-8,36,-5,9,3,22,18,15,9,14,14,3,-6,0,-4,-8,-10,-3,-8,-12,-12,-7,-18,5,-8,10,-10,9,-22,8,-6,-3,-1,-9,5,-1,-2,6,-3,0,-2,15,-3,5,-2,-2,4,8,7,8,4],[13105,3084,4,-6,-2,-1,-1,-16,-11,-1,-1,7],[13015,3220,4,0,0,-2,-4,-7,-4,8,1,2],[13041,3251,5,2,1,-2,-4,-2,-4,-9,-3,-3,-1,5,-11,-2,-2,6,14,7],[13016,3255,4,-7,0,-14,-13,-12,-7,-3,1,6,-5,-1,0,1,10,6,-5,0,-3,2,1,9,4,6,-3,5,4,-1],[12888,3267,2,-3,-12,1,1,-4,-2,-4,-3,3,-9,-1,-5,2,2,6,2,-3,1,3,-1,9,2,2,2,0,2,-4,11,6,0,-3,4,-3,-1,-4],[13979,3314,9,-5,-4,-5,-5,2,-5,6,1,3],[12910,3299,7,2,1,-3,-8,-6,0,-6,-3,0,-1,-4,-1,0,-2,11,-5,2,4,3,2,-1,1,1,0,6,3,-2,3,15,1,-6],[12956,3341,0,-4,-7,-12,-8,-7,-7,0,1,3,3,-3,3,1,-3,2,1,3,3,0,-1,3,3,3,0,5,6,1,1,2,1,-1,2,1,-1,2],[12978,3377,2,-2,-6,-1,-2,-4,-4,4,-2,0,-1,3,4,-1,-3,6,2,-1,1,6,8,-3,0,-4,3,-1],[13224,3387,-2,-1,-3,6,4,3,5,-1,5,-4,7,2,2,2,5,0,-3,-4,-6,-1,-1,-5,-4,1,-1,3,-4,-2],[13949,3406,0,3,7,2,2,-2,-5,-5,-2,0],[13256,3407,-10,2,5,4,-1,3,3,2,2,-1,0,-6,3,1],[13300,3421,-5,-1,4,3,-2,2,6,5,2,-8],[12931,3428,1,1,3,0,-3,-3,0,-3,-2,-1,-2,-9,-6,-4,-3,2,-2,0,4,22,2,-1,-1,-3,6,3],[13927,3440,3,2,-3,-10,-2,2],[13500,3461,3,-3,-13,-16,0,-5,6,-10,-16,-7,-7,-1,-3,3,2,3,-3,-1,-3,5,2,4,4,0,8,12],[12945,3462,3,-2,-2,-5,-10,-14,0,-2,3,2,0,-4,2,-2,-4,-4,-5,-1,-1,2,4,1,0,3,-4,-2,0,4,-2,-4,-6,2,4,2,0,5,4,3,-3,-1,0,1,5,8,-4,3,3,8,6,-1,5,4,-1,2,4,0,3,-6],[13942,3478,4,-4,-2,-6,-8,2,-1,2,1,8],[13337,3627,1,-6,-5,-2,1,-1,-1,-2,-7,0,-7,5,2,9,8,4],[13846,3807,12,0,0,-3,-8,-13,-13,-8,-10,-3,-5,0,0,3,6,2,1,6,5,6,-3,3,-6,-2,-1,9,7,10,12,9,4,5,4,1,0,-8,-7,-14,0,-5],[13955,4224,1,-1,-4,-6,-1,-7,-5,-5,-3,2,-2,10,4,5],[14531,4359,5,-4,-8,-3,0,2,5,3,-13,4],[14133,4517,-2,-5,-6,-2,-10,5,-2,6,7,4,7,-2],[14105,4545,2,-3,-3,-16,-4,9,0,7,-3,4,2,1,2,-3],[13437,3455,-2,-12,-4,2,1,2,-8,-5,0,4,-7,1,1,5,2,-1],[12993,3187,0,-4,-4,-2,-3,1,-1,4,-3,-1,2,3,7,-3,0,2],[13045,3260,0,-4,-2,-2,-3,5,4,3],[12890,3282,1,-3,-3,-2,-4,1,0,5,3,-3,-1,4],[12903,3290,-1,-5,-5,2,-1,3,4,-1,-2,4],[13309,3417,-4,-5,-3,0,1,7],[13292,3428,0,-6,-7,0,0,2],[13234,3430,-1,-4,-6,-2,3,5],[13705,3715,-1,-3,-9,-2,-4,4]],"kr":[[12836,3862,27,-48,29,-34,14,-12,1,-7,4,-1,4,-9,18,-23,5,-15,5,-6,-2,-5,6,-29,-5,-11,2,-21,-5,-9,-1,-12,5,-10,-5,-6,7,-5,10,9,4,-6,-5,-8,-4,-19,-6,-11,3,-4,-2,-9,-4,-4,-4,6,0,-2,2,-3,-3,-3,0,-10,-9,-3,-1,-7,-7,-9,-7,-1,1,-4,-3,-2,-4,3,-4,-6,-2,2,0,-3,-4,0,0,9,-4,-6,-2,4,-2,-4,-9,0,-1,3,-2,-3,-3,2,-3,0,0,4,-2,-2,-4,3,-2,-1,-2,7,-2,-3,4,-11,3,-1,-5,0,-2,3,-10,1,0,-2,-9,-3,-2,-4,12,4,0,-5,-7,-2,2,-2,-1,-7,2,0,1,1,1,-1,-3,-5,-6,0,0,1,4,1,-8,1,-2,3,4,1,-2,4,-4,-4,-8,3,-1,-5,-7,0,-2,3,-6,1,1,15,-5,-4,-2,-1,1,-4,-6,-1,-2,4,-4,-7,-15,1,-2,3,-1,-5,-5,-3,-2,-1,-5,5,-1,-4,2,-5,6,-5,4,3,8,1,-4,-12,-3,-1,-5,1,-4,-3,2,-8,-8,4,2,9,-4,6,-2,8,-4,-5,-11,-2,6,-2,-7,-4,4,0,1,-6,6,-4,2,-2,-4,0,5,-2,0,-3,-5,-2,-6,3,-4,-1,1,-4,8,-1,-7,-5,-4,-2,1,-2,-2,-1,-10,11,-5,-2,1,-2,-6,3,9,10,-2,-7,6,1,1,5,-2,4,3,4,4,-6,5,5,-3,4,-4,-2,-4,5,-5,-8,-6,0,-13,-8,-2,-7,-5,-4,0,-5,-4,0,0,-3,-9,3,0,12,-3,2,-2,-3,1,-4,-3,-1,2,-3,-5,-3,2,-2,-4,1,-1,-3,-5,-1,-3,-10,-8,-1,1,5,-5,1,4,6,-4,2,0,5,-1,-1,2,4,5,0,-3,2,3,3,-15,-3,-4,5,-3,-1,-2,2,0,2,2,0,-5,3,2,11,3,0,4,-5,-2,-2,3,-7,9,-3,1,2,-4,1,-1,4,-3,-1,-1,7,7,0,0,-4,9,-5,-2,3,10,-2,-6,3,-5,6,-15,3,10,3,7,-3,1,5,10,-1,-1,1,4,1,-2,1,-7,0,1,6,-2,2,-3,-2,1,-3,-4,-7,-2,1,0,2,-12,-2,6,10,-3,6,4,3,-7,-1,-1,-4,-4,1,1,0,-3,3,5,0,2,5,-5,6,-2,1,1,-2,-2,-2,-4,7,4,2,3,-2,2,4,0,-6,7,-4,2,-4,2,8,-8,7,-1,7,-5,-1,7,2,-2,1,5,11,5,-2,-4,4,7,14,10,1,5,3,5,-4,-2,6,-16,-1,-5,2,1,4,13,7,3,7,3,1,7,0,5,-3,1,3,-9,6,3,1,7,0,4,3,-3,2,-8,-2,-12,0,0,4,-8,1,-1,3,22,2,13,7,-18,-6,-6,8,2,0,-6,5,-4,0,-2,2,-4,-2,1,3,3,1,7,0,-7,5,5,7,-7,3,7,3,-6,2,-2,5,12,5,-6,0,-4,-3,-2,1,-2,5,3,3,-4,1,-1,6,5,0,1,3,-4,2,3,2,-4,2,1,3,2,0,-2,3,-4,-3,0,-8,-2,-3,-5,2,1,7,-1,3,-3,1,-2,-4,-2,0,4,-9,-4,-3,0,5,-3,4,0,5,-4,-4,-5,-1,-2,3,4,1,1,2,-5,3,-3,-6,0,6,4,6,2,-4,2,0,-2,3,3,-1,2,2,-4,0,1,4,-2,3,4,1,0,-3,5,0,1,9,2,1,1,-9,-4,-8,1,-1,4,1,3,-1,-3,6,1,1,3,-2,3,2,-2,2,2,0,2,4,-7,4,3,1,-4,2,1,1,4,-1,0,2,6,-1,-2,-4,1,-1,3,1,1,-2,-1,-7,1,-3,4,11,6,-5,-9,10,2,1,3,-3,3,0,-6,4,-1,3,13,-5,0,-9,5,8,8,-1,4,-2,-2,-7,3,3,2,-1,2,-12,-2,-1,2,-3,1,8,4,-1,-4,5,13,5,2,3,-2,2,5,2,-6,-1,-1,-5,-6,0,-9,7,6,1,-1,1,4,-1,-2,9,-2,-1,-2,-5,-9,1,0,7,10,3,0,3,-3,-2,-3,3,-9,-6,-2,0,2,3,-4,0,0,2,5,3,-4,1,-2,3,11,0,1,-3,4,5,5,0,-18,6,3,5,-6,1,-2,-3,-2,2,2,3,-4,3,0,3,4,3,-4,1,0,4,-4,6,-3,16,13,-1,0,-9,10,-3,-8,5,2,14,-3,0,0,11,9,4,9,10,7,5,5,9,12,7,7,2,22,1,9,-2,28,3,5,-4,24,1,13,6,6,4,5,8,0,10],[12641,3646,2,-5,-7,0,2,4,-4,-1,2,3,-3,0,-2,11,5,3],[12630,3780,4,-1,-2,-3,-10,0,3,5],[12695,3348,-1,-5,-7,-6,-3,-6,-20,-5,-3,-2,-28,0,-6,-4,-10,7,1,7,9,10,4,2,17,6,31,4,11,-4,3,-6],[12717,3448,6,0,0,-5,-6,-1,-5,2,-1,2],[12638,3450,-3,-9,-4,1,0,-2,-10,-4,-7,0,1,3,-3,1,0,-2,-2,2,2,4,5,2,6,7,4,-1,-2,5,7,-4,3,2],[12778,3468,4,-6,-3,-4,-5,5,3,4,-1,4,3,1,1,-2],[12599,3471,2,-2,-3,-3,-5,1,-1,3,6,3],[12601,3478,0,-2,-6,0,-2,-4,-3,1,-1,3,2,2],[12606,3491,1,2,2,-2,-1,-4,-9,-1,4,5],[12807,3482,-1,-12,-8,0,-4,7,-5,-6,-3,2,-3,14,7,7,4,-3,-3,-4,1,-3,4,-3],[12875,3487,-1,-3,-2,0,2,-5,-5,2,-3,-5,3,-2,-11,-3,4,2,-2,1,0,3,-3,-2,-1,3,3,1,1,5,-7,-3,-4,6,3,3,5,1,8,-2,-4,6,8,4,-1,1,2,3,2,-1,1,-8,-2,-6,3,1],[12611,3505,-5,1,1,4,6,4,4,0,-4,-2,1,-4],[12656,3751,2,-2,-7,-2,-7,-5,-4,2,-4,0,0,3,11,3,3,3],[13090,3755,2,-4,-2,-5,-7,1,-2,5],[12636,3770,2,-2,-1,-2,-9,4,3,5],[12651,3760,-3,1,-7,-1,-4,3,5,2,-5,8,0,7,4,2,11,-5,2,-14],[12753,3445,1,-2,-5,-2,-4,6,6,0],[12778,3451,0,-2,-4,1,-3,4,4,1],[12610,3460,0,-4,-6,-3,1,2,-2,1,5,2,-2,4],[12617,3473,0,-3,-3,2,-3,0,-4,5,9,-2],[12608,3482,-1,3,4,0,1,3,3,0,-3,-8,-2,0],[12807,3485,1,-1,-11,1,-1,1,4,5,2,0,-1,-4,4,2],[12661,3726,0,-3,-7,-3,2,4,-2,4,4,1],[12660,3417,1,-2,-3,1,-4,-3,-3,1,2,4],[12691,3420,1,-2,-1,-2,-6,0,2,5],[12661,3422,-3,-4,-3,1,1,4],[12685,3431,-9,3,8,1,5,-1],[12676,3431,1,-2,-4,0,-4,1,1,2,-5,1,0,7,6,-1],[12676,3438,2,5,6,1,2,-5,-4,1,-4,-5],[12839,3482,5,0,-2,-6,-5,4,1,1,-5,2,2,1],[12634,3486,2,-2,-2,-2,-3,4,-8,-1,6,3,1,4,5,-2,-3,-2],[12623,3505,-6,2,-1,3,8,0,-2,-2,4,-2,0,-4]],"land":[[12520,4590,840,0,-2,-3,-3,2,-4,-1,-3,-6,3,-4,-7,-7,5,-2,-3,-4,2,-2,-5,-1,-2,-5,-4,0,-19,-8,-5,-7,-3,-13,2,-16,-15,-10,-100,20,-6,3,-6,8,-6,-4,-7,-8,-9,-2,-2,-4,1,-4,-1,-3,-18,-13,-10,1,-15,-7,-7,2,-6,-1,-3,-5,-9,-2,0,-2,14,-14,19,-63,-4,-3,-1,-5,1,-6,-5,-13,2,-19,-3,-6,11,-8,1,-7,-3,-4,-1,-7,-7,-7,1,-8,-10,-9,2,-12,-8,-1,-3,-5,-22,2,-4,-5,-14,0,-18,-8,-3,-4,2,-2,10,0,5,-3,3,-5,-1,-5,-4,-2,-3,8,-4,-2,1,-2,-2,-2,-2,1,0,4,-11,5,-6,6,-2,3,2,13,-2,3,-14,2,3,4,-1,2,-12,-2,-7,5,-2,0,-3,-1,3,-2,-6,-2,-9,-21,0,-5,3,-2,-1,-3,-4,-2,2,-2,-2,-2,-1,-11,-3,-4,-11,1,0,-4,-5,-4,-11,7,-4,-1,-5,2,1,-3,-2,1,-3,-4,-6,-2,0,-5,-5,0,4,-2,-5,-6,3,-2,-9,-7,-6,0,-3,-5,-7,-1,-2,-5,-4,-1,-18,2,-1,-2,-10,0,-5,-3,-6,0,-24,3,-23,-4,-1,-2,3,-11,4,-2,7,-13,9,-5,5,-8,-11,-18,-4,-2,-5,0,2,1,-2,1,-4,-1,-1,3,-3,-1,-2,6,-3,-2,-3,2,-6,-1,-3,-3,-19,2,-2,-2,-8,3,-2,3,-23,0,-4,1,1,3,-7,2,-3,-3,-5,0,-3,2,8,5,-12,5,-1,4,3,0,-4,5,-9,4,-2,3,-4,-2,-3,-3,-5,-2,-2,-3,-9,4,-1,-2,4,-2,-6,-3,-5,0,-5,-6,1,-5,-8,-13,2,-8,-3,-1,1,3,-3,0,-3,-2,-17,-20,-15,-7,2,-2,-4,-5,-2,-1,-3,-6,-7,-3,3,0,0,-1,-7,-2,-5,2,-7,-3,-6,2,-12,-8,4,-4,-7,-1,-4,2,-2,-5,-8,-2,-2,-4,-3,0,-1,-4,-12,2,-3,-3,-6,-2],[12836,3862,-8,-4,0,-10,-5,-8,-6,-4,-13,-6,-24,-1,-5,4,-28,-3,-9,2,-22,-1,-7,-2,-12,-7,-5,-9,-7,-5,-9,-10,-9,-4,0,-11,-2,-3,-6,-3,-15,8,-4,4,-14,-4,-8,-1,-3,-2,1,-9,-5,1,-2,6,-3,0,0,7,-5,-2,-5,6,-2,-1,5,-8,-7,2,-9,10,-2,1,-1,4,-20,4,-2,-2,2,-2,8,-1,0,-3,4,0,-2,-2,4,0,-5,-3,-6,3,1,-7,-2,-2,2,-2,-3,-1,1,-4,-4,0,-1,2,-4,-2,0,3,-6,-7,-8,-1,-4,-4,-1,1,2,7,8,1,-6,1,1,2,7,2,6,0,1,2,-4,1,2,4,-6,3,-3,-1,1,-1,-5,-1,5,-2,1,-3,-4,3,-5,-1,3,-2,-7,-3,-1,1,-6,0,7,6,-5,3,0,2,-6,-5,0,17,5,-3,2,4,-2,2,-5,0,0,57,7,2,3,-1,7,3,7,0,2,2,5,-2,1,-4,3,3,6,-5,5,0,-13,9,-5,1,-3,5,-4,-2,2,-2,-1,-1,-3,-1,-3,1,-2,-1,-4,1,1,-2,-3,-1,-4,3,3,3,-2,2,-2,2,-1,-6,-2,0,0,25,7,9,7,0,-6,1,1,6,5,2,-1,2,1,2,7,0,-2,4,5,6,-2,1,-2,4,2,0,4,3,-10,1,2,4,-4,-1,7,11,4,2,-1,2,-15,-6,-8,5,2,2,-3,0,0,101,6,2,3,3,12,-2,1,4,3,0,2,4,8,2,2,5,4,-2,7,1,-4,4,12,8,6,-2,7,3,5,-2,7,2,0,1,-3,0,7,3,3,6,2,1,4,5,-2,2,15,7,17,20,3,2,3,0,-1,-3,3,1,-2,8,8,13,-1,5,5,6,5,0,6,3,-4,2,1,2,9,-4,2,3,5,2,3,3,4,2,2,-3,9,-4,4,-5,-3,0,1,-4,12,-5,-8,-5,3,-2,5,0,3,3,7,-2,-1,-3,4,-1,23,0,2,-3,8,-3,2,2,19,-2,3,3,6,1,3,-2,3,2,2,-6,3,1,1,-3,4,1,2,-1,-2,-1,5,0,4,2,11,18,-5,8,-9,5,-7,13,-4,2,-3,11,1,2,23,4,24,-3,6,0,5,3,10,0,1,2,18,-2,4,1,2,5,7,1,3,5,6,0,9,7,-3,2,5,6,-4,2,5,0,0,5,6,2,3,4,2,-1,-1,3,5,-2,4,1,11,-7,5,4,0,4,11,-1,3,4,1,11,2,2,-2,2,4,2,1,3,-3,2,0,3,9,23,6,2,-3,2,5,1,8,-5,11,2,1,-2,-3,-4,14,-2,2,-3,-2,-13,2,-3,6,-6,11,-5,0,-4,2,-1,2,5,3,1,2,-1,6,-15,7,-5,1,-8,4,-2,-10,-4,-1,4,-8,4,-4,-1,-3,-2,-3,1,-3,-3,2,-5,-3,2,0,-3,-6,-5,1,4,-3,2,-9,-7,0,-7,-3,0,-1,-3,-4,2,-5,-1,-4,-8,-2,1,-3,-3,2,-2,-3,-2,-1,-4,-6,0,-5,-14,-4,2,-4,-2,-3,-8,-5,-3,-4,-10,1,-9,15,-8,-5,-9,-5,-17,2,-14,3,-4,-4,-11,-15,1,-5,-4,-9,-2,-8,-3,-5,-8,-3,4,-4,0,-6,-14,-9,-10,-10,-1,-12,-9,-22,-6,-2,-4,5,-3,-1,-4,-3,-2,-4,1,-16,-9,-7,0,-3,-7,-7,5,-3,-2,0,-3,-7,-1,-15,3,-7,-8,-3,1,-4,-9,-9,0,1,-2,-9,-2,-4,-4,-4,2,-12,-11,1,-7,4,-1,2,-4,-5,-9,4,-19,-2,-2,-2,2,2,5,-4,6,-12,-5,5,-2,4,0,0,-1,-4,-2,-4,1,-2,-10,2,-4,6,-3,4,2,4,-4,8,0,7,-3,8,0,13,-16,2,0,10,-10,8,-2,12,-11,7,3,8,-8],[13775,4590,-8,-11,-27,-17,-26,-25,-6,-1,-27,-17,-3,-8,-9,-7,-3,0,-10,-9,-1,-6,-10,-6,-1,-4,-1,-2,-7,2,-5,-5,2,-3,-6,-2,-3,-4,-1,-8,-3,-1,-3,-6,-12,-5,-5,1,-16,-10,-2,-7,-3,-3,-7,-2,-2,-4,-4,-3,0,-5,-4,-8,-8,-4,-3,-8,-5,3,0,-6,2,0,0,-1,4,0,-9,-12,-15,-7,-4,4,-6,-2,5,-3,-1,-4,-8,-10,0,-3,-17,-5,-13,-8,-7,-6,-7,-2,-27,-14,-24,-8,-8,-8,-6,-3,-12,-9,-9,2,-11,-5,-1,-3,-5,3,-8,0,-2,-2,-5,0,-10,-6,-18,-3,-8,-5,-14,1,-2,2,8,3,-8,5,1,2,-2,1,-9,-1,-3,-7,-5,1,-3,6,-3,1,0,8,-8,-4,2,-1,-8,0,-4,-2,-7,3,-1,5,-10,2,-5,-4,1,-4,-5,-1,-2,4,1,17,-1,3,3,0,2,4,-1,4,3,0,2,2,-7,5,4,3,0,3,-6,1,-1,-3,-5,-5,-13,-5,-7,-6,-10,-5,-4,2,3,3,-6,-3,-1,1,6,10,9,4,5,7,-2,2,-4,-6,-2,0,1,2,-2,2,-6,1,-5,-1,-2,1,1,1,-2,1,-6,-5,-1,-6,-3,-2,4,-2,-3,-2,-4,3,-4,-3,2,-1,2,1,-3,-4,-10,-9,0,-4,-6,0,0,-6,-11,1,1,-8,6,1,1,-1,-9,-4,-3,-6,-5,2,-3,-1,-3,-7,2,-3,-4,-2,-2,-5,3,-2,-2,-1,1,-3,-5,3,1,3,-5,1,-1,5,-3,-3,-10,0,-10,-4,-7,3,7,1,4,-2,2,3,-16,0,4,2,0,3,-8,-2,-3,2,-6,-4,0,-2,7,-2,0,-4,4,2,10,-7,-3,-1,0,-5,-5,-1,-9,-16,-4,2,-1,8,-6,3,-6,10,5,4,-1,5,-7,6,-10,0,-2,2,3,4,18,8,14,0,4,5,2,0,7,-2,13,0,3,5,8,1,-2,12,10,9,-1,8,7,7,1,7,3,4,-1,7,-11,8,3,6,-2,19,5,13,-1,6,1,5,4,3,-19,63,-14,14,0,2,9,2,3,5,6,1,7,-2,15,7,10,-1,18,13,1,3,-1,4,2,4,9,2,10,11,5,0,3,-6,7,-4,98,-21,17,11,-2,16,3,13,5,7,19,8,4,0,2,5,5,1,-2,2,3,4,-5,2,7,7,-3,4,5,7,5,-2,2,3],[13192,4302,0,-4,-4,-2,-12,3,3,1,-2,2,2,0,-1,2,8,0,-3,3],[14618,4354,5,-1,-2,-5,-8,-2,-5,6,5,2],[14640,4442,0,-6,-4,-4,-9,-5,-15,-2,-6,-6,-14,-8,-3,-4,-1,-4,-7,-2,-3,-8,-12,-3,-7,-5,-3,-20,-1,7,-4,2,-7,-2,-3,12,32,20,6,11,7,4,4,6,7,4,15,22,6,0,15,-8],[13245,4283,3,-3,-8,3,3,7,2,-4]]};
-
-/* ---------- the conquest map: Japan and the south of the Korean peninsula, provinces filled in as they are taken ----------
-   Coastlines: natmap_data.js (Natural Earth). Each province is the land nearest to its seat (a little wobble so borders
-   look drawn by hand); Mimana's provinces only reach so far into the peninsula. Hidden regions stay plain until opened.
-   Provinces taken since the map was last opened spread in like ink. SAVE.mapSeen remembers how many were shown. */
-const NATP={伊豆:[34.95,138.95],相模:[35.42,139.25],武蔵:[35.9,139.45],安房:[35.05,139.95],上総:[35.4,140.2],
-  下総:[35.85,140.15],常陸:[36.45,140.35],下野:[36.6,139.75],上野:[36.4,138.95],甲斐:[35.65,138.6],
-  駿河:[35.15,138.45],遠江:[34.85,137.85],三河:[34.9,137.35],尾張:[35.2,136.9],美濃:[35.6,136.85],
-  信濃:[36.2,138.05],越後:[37.6,138.95],越中:[36.65,137.2],加賀:[36.4,136.6],越前:[35.9,136.2],
-  近江:[35.2,136.1],山城:[35.0,135.75],大和:[34.35,135.85],河内:[34.6,135.6],摂津:[34.8,135.35],
-  播磨:[34.95,134.75],備前:[34.8,134.05],備中:[34.8,133.6],安芸:[34.5,132.6],長門:[34.25,131.2],
-  淡路:[34.38,134.83],阿波:[33.9,134.3],讃岐:[34.22,133.95],伊予:[33.7,132.85],土佐:[33.4,133.35],
-  筑前:[33.6,130.55],豊後:[33.15,131.5],肥後:[32.65,130.8],日向:[32.2,131.35],薩摩:[31.6,130.4],
-  出羽:[39.3,140.2],陸奥:[39.7,141.3],佐渡:[38.05,138.4],能登:[37.1,136.85],飛騨:[36.15,137.2],
-  金官:[35.23,128.88],小加耶:[34.97,128.32],安羅:[35.27,128.42],多羅:[35.57,128.16],大加耶:[35.73,128.27],
-  後志:[42.85,140.55],石狩:[43.3,141.75],天塩:[44.6,142.0],北見:[43.9,143.9],根室:[43.35,145.2]};
-let NMCACHE=null;
-function nmData(){if(NMCACHE)return NMCACHE;const D=NATMAP_D,dec=r=>{const o=[[r[0]/100,r[1]/100]];for(let i=2;i<r.length;i+=2){const p=o[o.length-1];o.push([p[0]+r[i]/100,p[1]+r[i+1]/100]);}return o;};
-  const P=[];REGIONS.forEach((R,ri)=>R[1].forEach((n,j)=>{const c=NATP[n];if(c)P.push({n,region:R[0],ri,lv:ri*5+j+1,lat:c[0],lon:c[1],kr:R[0]==='任那'});}));
-  return NMCACHE={bb:D.bb,jp:D.jp.map(dec),kr:D.kr.map(dec),land:D.land.map(dec),P,px:{}};}
-function nmTaken(){return Math.min(winsN(),REGIONS.length*5);}// provinces taken in order: levels 1..n
-function nmOpen(){const b=(SAVE.best&&SAVE.best.nation)||1;return b>HIDDEN_FROM+5?55:b>HIDDEN_FROM?50:45;}// how many provinces are shown (hidden regions open later)
-// the pixel map: which province each pixel of land belongs to (-1 sea / other land, -2 the peninsula outside Mimana)
-function nmPixels(W,H){const M=nmData(),key=W+'x'+H;if(M.px[key])return M.px[key];
-  const[l0,b0,l1,b1]=M.bb,k=Math.cos(38*Math.PI/180),S=W/((l1-l0)*k),X=lon=>(lon-l0)*k*S,Y=lat=>(b1-lat)*S;
-  const mask=rings=>{const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.fillStyle='#fff';
-    for(const r of rings){g.beginPath();r.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.closePath();g.fill();}return g.getImageData(0,0,W,H).data;};
-  const mj=mask(M.jp),mk=mask(M.kr),id=new Int16Array(W*H).fill(-1);
-  const C=M.P.map(p=>[X(p.lon),Y(p.lat),p.kr]),jpI=[],krI=[];C.forEach((c,i)=>(c[2]?krI:jpI).push(i));
-  const reach=.62*S;// Mimana: about 0.6 degrees round each seat
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const o=y*W+x,a=o*4;const j=mj[a+3]>127,kk=!j&&mk[a+3]>127;if(!j&&!kk)continue;
-    const wx=x+Math.sin(y*.045+Math.cos(x*.031)*2.1)*S*.05,wy=y+Math.sin(x*.05+Math.cos(y*.027)*1.7)*S*.05;// hand-drawn wobble
-    let best=-1,bd=1e18;for(const i of(j?jpI:krI)){const dx=wx-C[i][0],dy=wy-C[i][1],d=dx*dx+dy*dy;if(d<bd){bd=d;best=i;}}
-    id[o]=kk&&bd>reach*reach?-2:best;}
-  return M.px[key]={id,W,H,X,Y,S};}
-function nmHex(h){const n=parseInt(h.slice(1),16);return[n>>16&255,n>>8&255,n&255];}
-function drawNatMap(cv){if(!cv||typeof NATMAP_D==='undefined')return;
-  const M=nmData(),dpr=Math.min(2,window.devicePixelRatio||1),cw=Math.max(240,cv.clientWidth||320),[l0,b0,l1,b1]=M.bb,asp=(b1-b0)/((l1-l0)*Math.cos(38*Math.PI/180));
-  const W=Math.round(Math.min(900,cw*dpr)),H=Math.round(W*asp);cv.width=W;cv.height=H;cv.style.height=Math.round(cw*asp)+'px';
-  const g=cv.getContext('2d'),PX=nmPixels(W,H),{id,X,Y,S}=PX,n=nmTaken(),open=nmOpen(),seen=Math.min(n,SAVE.mapSeen||0);
-  const fc=nmHex(flagC().c),paper=[205,191,154],paperK=[150,146,128],taken=i=>M.P[i].lv<=n,shown=i=>M.P[i].lv<=open;
-  const regDone=ri=>n>=ri*5+5;
-  // the base picture: sea, land, provinces (taken ones filled), borders
-  const img=g.createImageData(W,H),d=img.data,sea0=[24,42,60],sea1=[36,62,86];
-  const fill=(o,c,shade)=>{d[o]=c[0]*shade;d[o+1]=c[1]*shade;d[o+2]=c[2]*shade;d[o+3]=255;};
-  const newMask=[];
-  for(let y=0;y<H;y++){const t=y/H;for(let x=0;x<W;x++){const o=y*W+x,a=o*4,v=id[o];
-    if(v===-1){fill(a,[sea0[0]+(sea1[0]-sea0[0])*t,sea0[1]+(sea1[1]-sea0[1])*t,sea0[2]+(sea1[2]-sea0[2])*t],1);continue;}
-    if(v===-2){fill(a,paperK,.62);continue;}
-    const tex=.93+.07*Math.sin(x*.9+y*1.7)*Math.sin(x*.23-y*.31);
-    const r=x+1<W?id[o+1]:v,b=y+1<H?id[o+W]:v,edge=(r!==v&&r>=0)||(b!==v&&b>=0),redge=edge&&((r>=0&&M.P[r].ri!==M.P[v].ri)||(b>=0&&M.P[b].ri!==M.P[v].ri));
-    if(!shown(v)&&M.P[v].kr){fill(a,paperK,.62);continue;}// Mimana before it opens: plain like the rest of the peninsula
-    let c=paper;if(shown(v)&&taken(v)&&M.P[v].lv<=seen)c=fc;
-    const hideB=!shown(v)||(r>=0&&!shown(r))||(b>=0&&!shown(b));
-    fill(a,c,tex*(edge&&!hideB?(redge?.45:.72):1));}}
-  const base=document.createElement('canvas');base.width=W;base.height=H;base.getContext('2d').putImageData(img,0,0);
-  // provinces newly taken: their own layer, revealed by a spreading circle
-  const fresh=M.P.map((p,i)=>i).filter(i=>taken(i)&&M.P[i].lv>seen&&shown(i)).sort((a,b)=>M.P[a].lv-M.P[b].lv);
-  const layers=fresh.map(i=>{const c=document.createElement('canvas');c.width=W;c.height=H;const cg=c.getContext('2d'),im=cg.createImageData(W,H),dd=im.data;
-    for(let o=0;o<W*H;o++)if(id[o]===i){const x=o%W,y=(o/W)|0,tex=.93+.07*Math.sin(x*.9+y*1.7)*Math.sin(x*.23-y*.31),r=x+1<W?id[o+1]:i,b=y+1<H?id[o+W]:i,e=(r!==i&&r>=0)||(b!==i&&b>=0);
-      dd[o*4]=fc[0]*tex*(e?.72:1);dd[o*4+1]=fc[1]*tex*(e?.72:1);dd[o*4+2]=fc[2]*tex*(e?.72:1);dd[o*4+3]=255;}
-    cg.putImageData(im,0,0);return{c,x:X(M.P[i].lon),y:Y(M.P[i].lat)};});
-  const coast=(rings,col,w)=>{g.strokeStyle=col;g.lineWidth=w;g.lineJoin='round';for(const r of rings){g.beginPath();r.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.closePath();g.stroke();}};
-  const others=document.createElement('canvas');others.width=W;others.height=H;{const og=others.getContext('2d');og.fillStyle='rgb(93,91,80)';
-    for(const r of M.land){og.beginPath();r.forEach((p,i)=>i?og.lineTo(X(p[0]),Y(p[1])):og.moveTo(X(p[0]),Y(p[1])));og.closePath();og.fill();}}
-  const nextI=M.P.findIndex(p=>p.lv===n+1&&p.lv<=open),fs=Math.max(10,W/34);
-  const t0=performance.now(),STEP=650,DUR=1100;
-  const frame=now=>{if(!document.body.contains(cv))return;const t=now-t0;
-    g.drawImage(base,0,0);g.drawImage(others,0,0);
-    layers.forEach((L,k)=>{const u=clamp((t-k*STEP)/DUR,0,1);if(u<=0)return;const e=1-Math.pow(1-u,3);
-      g.save();g.beginPath();g.arc(L.x,L.y,e*S*2.2+1,0,Math.PI*2);g.clip();g.drawImage(L.c,0,0);g.restore();
-      if(u<1){g.strokeStyle=`rgba(255,240,200,${.8*(1-u)})`;g.lineWidth=W/200;g.beginPath();g.arc(L.x,L.y,e*S*.9,0,Math.PI*2);g.stroke();}});
-    coast(M.jp,'rgba(40,30,18,.85)',Math.max(1,W/700));coast(M.kr,'rgba(40,30,18,.6)',Math.max(1,W/800));coast(M.land,'rgba(30,28,22,.6)',Math.max(1,W/900));
-    // region names: gold once pacified
-    g.textAlign='center';g.textBaseline='middle';
-    REGIONS.forEach((R,ri)=>{if(ri*5+1>open)return;const ps=M.P.filter(p=>p.ri===ri);let x=0,y=0;ps.forEach(p=>{x+=X(p.lon);y+=Y(p.lat);});x/=ps.length;y/=ps.length;
-      const at={奥羽:[39.5,140.75],北海道:[43.6,142.9]}[R[0]];if(at){x=X(at[1]);y=Y(at[0]);}
-      const off={関東:[.35,.5],坂東:[.7,-.3],任那:[0,-.9],四国:[0,.25],九州:[-.1,.1],北陸:[-.2,-.35],畿内:[0,.15],山陽:[0,-.35],東海:[.1,.55],}[R[0]]||[0,0];
-      x+=off[0]*S;y+=off[1]*S;const done=regDone(ri);g.font=`800 ${fs}px "Shippori Mincho B1",serif`;
-      g.lineWidth=fs/4;g.strokeStyle='rgba(14,12,8,.8)';g.strokeText(rn(R[0]),x,y);g.fillStyle=done?'#ffd76a':'rgba(250,240,215,.9)';g.fillText(rn(R[0]),x,y);});
-    // the next province: a pulsing ring
-    if(nextI>=0){const p=M.P[nextI],x=X(p.lon),y=Y(p.lat),s=.5+.5*Math.sin(now/260);
-      g.strokeStyle=`rgba(224,85,58,${.55+.45*s})`;g.lineWidth=W/240;g.beginPath();g.arc(x,y,S*(.2+.08*s),0,Math.PI*2);g.stroke();
-      g.fillStyle='#e0553a';g.beginPath();g.arc(x,y,W/180,0,Math.PI*2);g.fill();}
-    requestAnimationFrame(frame);};
-  requestAnimationFrame(frame);
-  if(fresh.length&&SAVE.mapSeen!==n){SAVE.mapSeen=n;try{save();}catch(e){}}
-  return{n,open,done:REGIONS.filter((R,ri)=>regDone(ri)&&ri*5+5<=open).length};}
-function natMapHTML(){const n=Math.min(nmTaken(),nmOpen()),open=nmOpen(),reg=open/5;let done=0;for(let ri=0;ri<reg;ri++)if(n>=ri*5+5)done++;
-  return`<div class="natmap"><canvas id="nmCv"></canvas><div class="nmcap"><span>${TT('攻め取った国','Provinces taken')} <b>${n}</b> / ${open}</span><span>${TT('平定した地方','Regions pacified')} <b>${done}</b> / ${reg}</span></div></div>`;}
-
 requestAnimationFrame(frame);
 })();
 </script>
