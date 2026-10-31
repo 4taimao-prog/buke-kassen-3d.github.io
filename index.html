@@ -1209,7 +1209,7 @@ async function newGame(level,tut,replay){
      ents:[],proj:[],fx:[],marks:[],trenches:[],speed:S?S.speed:1,over:null,
      eT:.5,tut:-1,tutMoved:0,kills:0,losses:0,hq:[],pincers:0,aiTowers:Math.min(6,2+Math.floor(level/2)),
      forts:WORLD.forts.map((f,i)=>({x:f.x,y:f.y,p:0,own:-1,i})),fcache:new Map(),squads:new Map(),intel:[],fogT:0};
-  if(KT){S.kt=KT;KT.calls=KT.calls||[];S.pool={...KT.army};S.ktOut=0;S.ktLim=KT_MAXG;S.ktMain={...KT.army};S.ktCalls=[];S.epool={...KT.eArmy};S.em=(.85+.006*level)*D.em;const r0=ktMPReg(KT.bottom);S.mp=[Math.round(150+r0*15),60];S.reg=[r0,(4+.2*level)*D.mp];S.income=0;S.aiTowers=Math.min(4,1+Math.floor(level/8));if(KT.def){S.waveT=14;S.aiTowers=0;S.mp[0]+=120;}}// MP: this province plus a fifth of the others
+  if(KT){S.kt=KT;S.forts=[];/* 全国平定: no forts on the way - the enemy only split up to hold them and got weaker */KT.calls=KT.calls||[];S.pool={...KT.army};S.ktOut=0;S.ktLim=KT_MAXG;S.ktMain={...KT.army};S.ktCalls=[];S.epool={...KT.eArmy};S.em=(.85+.006*level)*D.em;const r0=ktMPReg(KT.bottom);S.mp=[Math.round(150+r0*15),60];S.reg=[r0,(4+.2*level)*D.mp];S.income=0;S.aiTowers=Math.min(4,1+Math.floor(level/8));if(KT.def){S.waveT=14;S.aiTowers=0;S.mp[0]+=120;}}// MP: this province plus a fifth of the others
   FV=new Uint8Array(FW*FH);TR=new Uint8Array(NC);S.hasWater=blk.indexOf(2)>=0;
   S.hq[0]=mk(0,'hq',HQP[0].x,HQP[0].y);S.hq[1]=mk(1,'hq',HQP[1].x,HQP[1].y);S.hq[1].seen=1;S.ehq=[S.hq[1]];
   // late in a region (4th and 5th province) a second enemy lord holds a camp beside the first
@@ -1889,6 +1889,12 @@ function computeFlanks(){
     if(ok&&!behindWall(t.x,t.y,s)){S.flank.set(t.id,S.t+1);S.flankPts.push({x:t.x,y:t.y,side:s});}
   }
 }
+/* 全国平定: the guard squads nearest the HQ hold the camp. The nearest, a fifth of the whole enemy army, never leave their posts (core 2);
+   the next, a third of the army, go out only at enemies within 200 of the HQ (core 1). The rest sally as before. */
+function coreGuards(){const H=HQP[1],sq=new Map();
+  for(const u of S.ents)if(u.side===1&&u.guard&&!u.k.build&&u.hp>0){let g=sq.get(u.sq);if(!g){g={d:u.home?Math.hypot(u.home.x-H.x,u.home.y-H.y):1e9,us:[]};sq.set(u.sq,g);}g.us.push(u);}
+  const L=[...sq.values()].sort((a,b)=>a.d-b.d);let n=0;for(const u of S.ents)if(u.side===1&&!u.k.build&&!u.k.ship&&u.hp>0)n++;let k=0;
+  for(const g of L){const c=k<n/5?2:k<n*8/15?1:0;for(const u of g.us){if(c>(u.core||0)&&u.home&&Math.hypot(u.x-u.home.x,u.y-u.home.y)>120){u.st='move';u.then='hold';u.ax=u.gx=u.home.x;u.ay=u.gy=u.home.y;u.fld=fieldTo(u.home.x,u.home.y);}u.core=c;}k+=g.us.length;}}
 function guardResponse(dt){
   // the camp garrison rushes to intruders near the enemy HQ, then goes back to its posts
   S.thT-=dt;if(S.thT>0)return;S.thT=.8;
@@ -1897,12 +1903,13 @@ function guardResponse(dt){
   // the garrison takes the bait: once out, it chases whatever it can still see and only goes home after a while.
   // Only the last, strongest provinces (and the small 局地戦) keep a garrison that hurries straight back.
   const smart=MODE==='local'||S.level>=40;
-  if(!th&&S.alarm&&!smart){let cx=0,cy=0,n=0;for(const u of S.ents)if(u.side===1&&u.guard&&!u.k.build&&u.hp>0){cx+=u.x;cy+=u.y;n++;}
+  if(!th&&S.alarm&&!smart){let cx=0,cy=0,n=0;for(const u of S.ents)if(u.side===1&&u.guard&&!u.core&&!u.k.build&&u.hp>0){cx+=u.x;cy+=u.y;n++;}
     if(n){cx/=n;cy/=n;let b2=900*900;for(const o of S.ents){if(o.side!==0||o.k.build||o.hp<=0)continue;const d=(o.x-cx)**2+(o.y-cy)**2;if(d<b2){b2=d;th=o;}}}}
+  if(S.kt)coreGuards();
   if(th){
     if(!S.alarm&&th.side===0&&nearCam(h.x,h.y))toast(TT('敵の守備隊が迎え撃ってくる！','The enemy garrison sallies out!'));
-    S.alarm=S.t;const fl=fieldTo(th.x,th.y);
-    for(const u of S.ents){if(u.side!==1||!u.guard||u.k.build)continue;if(u.resp&&S.t-u.resp<3)continue;
+    S.alarm=S.t;const fl=fieldTo(th.x,th.y),inCamp=Math.hypot(th.x-h.x,th.y-h.y)<200;
+    for(const u of S.ents){if(u.side!==1||!u.guard||u.k.build)continue;if(u.resp&&S.t-u.resp<3)continue;if(u.core===2||u.core===1&&!inCamp)continue;
       u.st='move';u.then='hold';u.ax=th.x+(Math.random()-.5)*40;u.ay=th.y+(Math.random()-.5)*40;u.gx=th.x;u.gy=th.y;u.fld=fl;u.resp=S.t;u.tg=null;}
   }else if(S.alarm&&S.t-S.alarm>(smart?6:25)){S.alarm=0;
     for(const u of S.ents){if(u.side!==1||!u.guard||u.k.build||!u.home)continue;u.st='move';u.then='hold';u.ax=u.home.x;u.ay=u.home.y;u.gx=u.home.x;u.gy=u.home.y;u.fld=fieldTo(u.home.x,u.home.y);u.resp=0;}}
@@ -4602,7 +4609,15 @@ function poseHuman(u,dt,hipsW,ride){
 }
 function strBone(o,a,b){const Y=V.sub(b,a);const n=V.norm(Y);let X=V.norm(V.cross(n,[0,0,1]));if(V.len(X)<.1)X=[1,0,0];const Z=V.cross(X,n);M4.basis(o,X,Y,Z,a);}
 /* ---------- a horse ---------- */
-const GAITS={walk:{off:[.25,.75,0,.5],A:.28,L:.55,st:2.0},trot:{off:[0,.5,.5,0],A:.38,L:.85,st:2.7},gallop:{off:[.38,.48,0,.1],A:.62,L:1.25,st:3.4}};
+const GAITS={walk:{off:[.25,.75,0,.5],A:.28,L:.55,st:2.0},trot:{off:[0,.5,.5,0],A:.38,L:.85,st:2.7},gallop:{off:[.3,.42,0,.1],A:.46,L:1.1,st:3.6}};
+/* one leg of a real gallop (after a photo sequence): a short stance sweeping back, then the leg folds up tight and swings
+   forward under the body - the front knee tucks the hoof up behind, the hock lifts the hind hoof under the belly - and
+   reaches out just before it lands. q: 0 = hoof lands. Returns [upper, lower] (+upper = backward). */
+function galLeg(q,hind){q-=Math.floor(q);const S=hind?.36:.3,F=hind?-.38:-.52,B=hind?.5:.55;
+  if(q<S){const t=q/S;return[F+(B-F)*t,hind?-.12*Math.sin(Math.PI*t):.08*Math.sin(Math.PI*t)];}
+  const r=(q-S)/(1-S),e=r*r*(3-2*r);let up=B+(F-B)*e-(hind?.1:.16)*Math.sin(Math.PI*Math.min(1,r*1.15));// swing forward, overshooting a little before the reach
+  const fold=Math.pow(Math.sin(Math.PI*Math.min(1,r/.85)),1.3)*(r<.85?1:0),hf=r>.08&&r<.88?Math.pow(Math.sin(Math.PI*(r-.08)/.8),1.6):0;// the hock folds once the leg has left the ground: no flick of the hoof up behind
+  return[up,hind?-.8*hf:1.75*fold];}
 function poseHorse(u,dt){const W=u.HW,s=u.aspd||0;
   const sm=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
   const wG=sm(4.4,6,s),wW=(1-sm(1.7,2.9,s))*(1-wG),wT=Math.max(0,1-wW-wG),GW=[[GAITS.walk,wW],[GAITS.trot,wT],[GAITS.gallop,wG]];
@@ -4620,7 +4635,7 @@ function poseHorse(u,dt){const W=u.HW,s=u.aspd||0;
   const legs=[[3,4,0],[5,6,1],[7,8,2],[9,10,3]];
   for(const[U,Lw,i]of legs){const hind=i>=2;let ux,lx;
     if(dead){ux=(hind?.25:-.3)*dead;lx=(hind?-.2:.3)*dead;}
-    else{ux=0;lx=0;for(const[g,w]of GW){if(w<=0)continue;const p=ph+g.off[i]*TAU,fl=Math.pow(Math.max(0,Math.cos(p)),2)*g.L*amp;ux+=w*-g.A*Math.sin(p)*amp;lx+=w*(hind?-.75*fl:fl);}if(hind)ux+=.05;}
+    else{ux=0;lx=0;for(const[g,w]of GW){if(w<=0)continue;const p=ph+g.off[i]*TAU,fl=Math.pow(Math.max(0,Math.cos(p)),2)*g.L*amp;if(g===GAITS.gallop){const r=galLeg(ph/TAU-g.off[i],hind);ux+=w*r[0]*amp;lx+=w*r[1]*amp;continue;}ux+=w*-g.A*Math.sin(p)*amp;lx+=w*(hind?-.75*fl:fl);}if(hind)ux+=.05;}
     fkB(W,HOSK,U,ux,0,0);fkB(W,HOSK,Lw,lx,0,0);}
   fkB(W,HOSK,11,-.15-.45*clamp((s-3)/5,0,1)+(dead?.4:0)+gal*.12*Math.sin(ph*2),0,Math.sin(u.breath*1.3)*.12);
   for(let i=0;i<NHO;i++)u.HB.set(W[i],i*16);
@@ -4987,17 +5002,69 @@ let FOOTM=null,FOOTLOAD=false,FSTY='';// FSTY: tests only (dbg.fsty) - draw ever
 function loadFoot(){if(FOOTLOAD)return;FOOTLOAD=true;const go=()=>{try{buildFoot();}catch(e){console.error(e);FOOTM=null;}};
   if(window.FOOT3D)go();else{const s=document.createElement('script');s.src='foot3d.js';s.onload=go;s.onerror=()=>{};document.head.appendChild(s);}}
 function c3m(c){const m=new Float32Array(16);m[0]=c[0];m[4]=c[1];m[8]=c[2];m[1]=c[3];m[5]=c[4];m[9]=c[5];m[2]=c[6];m[6]=c[7];m[10]=c[8];m[15]=1;return m;}
-function meshOfLod(L,lo,hi,ckey){const pos=new Uint16Array(b64u8(L.pos).buffer),nor=new Int8Array(b64u8(L.nor).buffer),bw=b64u8(L.bw),idx=L.i32?new Uint32Array(b64u8(L.idx).buffer):new Uint16Array(b64u8(L.idx).buffer);
+/* ---------- weapons drawn here instead of the Meshy ones (their blades and bows came out flat, thick or turned wrong) ----------
+   Built along a shaft: h along the shaft (up = toward the blade), x toward the front (the edge side), y to the side.
+   mapTo turns those into model space; every vertex goes on one bone. */
+const WCOL={steel:[.78,.8,.84],steelD:[.42,.44,.48],gold:[.72,.56,.24],shaftB:[.17,.12,.09],shaftK:[.07,.06,.06],red:[.55,.1,.08],yumi:[.09,.07,.06],band:[.78,.64,.36],string:[.9,.87,.76],wrap:[.5,.14,.1]};
+function wpnMesh(spec,map,bone){const out=[],B=bone+32*bone+1024*255;
+  const vtx=(p,n,c,sp)=>{const P=map.p(p),N=map.n(n);out.push(P[0],P[1],P[2],N[0],N[1],N[2],c[0],c[1],c[2],sp,0,0,0,0,B);};
+  // a ring sweep: pts [h,x,y], radii along x and y, colour per ring
+  const sweep=(pts,rx,ry,col,sp,seg=8,cap=true)=>{const R=[];for(let i=0;i<pts.length;i++){const a=pts[Math.max(0,i-1)],b=pts[Math.min(pts.length-1,i+1)];
+      let t=[b[0]-a[0],b[1]-a[1],b[2]-a[2]];const tl=Math.hypot(...t)||1;t=t.map(v=>v/tl);// tangent; x axis kept perpendicular to it
+      let ex=[-t[1]*t[0],1-t[1]*t[1],-t[1]*t[2]];const el=Math.hypot(...ex)||1;ex=ex.map(v=>v/el);const ey=[t[1]*ex[2]-t[2]*ex[1],t[2]*ex[0]-t[0]*ex[2],t[0]*ex[1]-t[1]*ex[0]];
+      const ring=[];for(let k=0;k<seg;k++){const an=k/seg*TAU,c=Math.cos(an),s=Math.sin(an);
+        ring.push([[pts[i][0]+ex[0]*c*rx[i]+ey[0]*s*ry[i],pts[i][1]+ex[1]*c*rx[i]+ey[1]*s*ry[i],pts[i][2]+ex[2]*c*rx[i]+ey[2]*s*ry[i]],
+          [ex[0]*c/(rx[i]||.001)+ey[0]*s/(ry[i]||.001),ex[1]*c/(rx[i]||.001)+ey[1]*s/(ry[i]||.001),ex[2]*c/(rx[i]||.001)+ey[2]*s/(ry[i]||.001)]]);}R.push(ring);}
+    for(let i=0;i+1<R.length;i++)for(let k=0;k<seg;k++){const a=R[i][k],b=R[i][(k+1)%seg],c=R[i+1][(k+1)%seg],d=R[i+1][k],C=col(i);
+      vtx(a[0],a[1],C,sp);vtx(b[0],b[1],C,sp);vtx(c[0],c[1],C,sp);vtx(a[0],a[1],C,sp);vtx(c[0],c[1],C,sp);vtx(d[0],d[1],C,sp);}
+    if(cap)for(const[i,sg]of[[0,-1],[R.length-1,1]]){const t=pts[Math.min(pts.length-1,i+1)],u=pts[Math.max(0,i-1)],n=[(t[0]-u[0])*sg,(t[1]-u[1])*sg,(t[2]-u[2])*sg],C=col(Math.min(i,R.length-2));
+      for(let k=0;k<seg;k++){vtx(pts[i],n,C,sp);vtx(R[i][k][0],n,C,sp);vtx(R[i][(k+1)%seg][0],n,C,sp);}}};
+  const line=(h0,h1,n)=>{const p=[];for(let i=0;i<=n;i++)p.push([h0+(h1-h0)*i/n,0,0]);return p;};
+  const cyl=(h0,h1,r,col,sp=.2,seg=7)=>{const p=line(h0,h1,1);sweep(p,[r,r],[r,r],()=>col,sp,seg);};
+  for(const it of spec(sweep,line,cyl))it;return new Float32Array(out);}
+// the shaft: lacquered, with metal rings and an iron butt cap
+function wShaft(cyl,h0,h1,r,col,rings,ringCol){cyl(h0,h0+.06,r*1.15,WCOL.steelD,.6);cyl(h0+.06,h1,r,col,.35);for(const h of rings)cyl(h-.012,h+.012,r*1.18,ringCol,.6);return[];}
+// a yari head: straight, diamond-section blade with a collar
+function wYari(sweep,cyl,h0,L){cyl(h0-.05,h0+.02,.021,WCOL.steelD,.7);const P=[],rx=[],ry=[];
+  for(let i=0;i<=8;i++){const t=i/8;P.push([h0+.02+L*t,0,0]);const w=.024*Math.pow(1-t,.75)*(t<.12?.75+2*t:1)+.001;rx.push(w);ry.push(w*.32);}
+  sweep(P,rx,ry,()=>WCOL.steel,.9,4);return[];}
+// a naginata blade: wide, curving back toward the tip, the edge to the front (+x); a round guard below it
+function wNagi(sweep,cyl,h0,L){cyl(h0-.015,h0+.012,.04,WCOL.shaftK,.5);cyl(h0+.012,h0+.07,.02,WCOL.gold,.7);const P=[],rx=[],ry=[];
+  for(let i=0;i<=12;i++){const t=i/12,w=(.03+.012*Math.sin(Math.PI*Math.min(1,t*1.3)))*(t>.78?Math.max(.06,(1-t)/.22):1);
+    P.push([h0+.07+L*t,-.075*t*t+w*.35,0]);rx.push(w);ry.push(.007*(1-t*.6));}// centre a little forward: the back stays straighter, the edge bellies out
+  sweep(P,rx,ry,()=>WCOL.steel,.9,6);return[];}
+// a yumi: grip a third of the way up, the long upper limb; the back (+x) faces the target, the string runs behind
+function wYumi(sweep,cyl,lo,hi,s){const P=[],r=[],r2=[];for(let i=0;i<=24;i++){const h=lo+(hi-lo)*i/24,t=h>0?h/hi:-h/-lo;P.push([h,(-.17*t*t+.035*Math.pow(t,10))*s,0]);r.push(.016*(1-.45*t));r2.push(.011*(1-.45*t));}
+  sweep(P,r,r2,i=>{const h=P[i][0];return Math.abs(h)<.08*s?WCOL.wrap:(Math.abs(h)>.12*s&&(Math.floor(h/(.13*s))&1)?WCOL.band:WCOL.yumi);},.5,6);
+  const tz=(-.17+.035)*s;sweep([[hi*.985,tz,0],[lo*.985,tz,0]],[.0035,.0035],[.0035,.0035],()=>WCOL.string,.2,4,false);return[];}
+// shaft frame -> model space (foot: the weapon bone's own frame, mounts: along the model's own pole)
+function wMap(o,a,f){const sd=[a[1]*f[2]-a[2]*f[1],a[2]*f[0]-a[0]*f[2],a[0]*f[1]-a[1]*f[0]];
+  return{p:q=>[o[0]+a[0]*q[0]+f[0]*q[1]+sd[0]*q[2],o[1]+a[1]*q[0]+f[1]*q[1]+sd[1]*q[2],o[2]+a[2]*q[0]+f[2]*q[1]+sd[2]*q[2]],
+    n:q=>{const v=[a[0]*q[0]+f[0]*q[1]+sd[0]*q[2],a[1]*q[0]+f[1]*q[1]+sd[1]*q[2],a[2]*q[0]+f[2]*q[1]+sd[2]*q[2]],l=Math.hypot(...v)||1;return v.map(x=>x/l);}};}
+// which units get a drawn weapon: foot (in the weapon bone frame: tip +y, front +z) and mounted (along the pole)
+const FOOTW={spear:(sw,ln,cy)=>[wShaft(cy,-1.18,.62,.015,WCOL.shaftB,[-.6,.1,.5],WCOL.steelD),wYari(sw,cy,.64,.3)],
+  archer:(sw,ln,cy)=>[wYumi(sw,cy,-.66,1.32,.92)]};
+const MOUNTW={cav:{lo:.78,top:2.62,f:(sw,ln,cy,h0,h1)=>[wShaft(cy,h0,h1,.016,WCOL.shaftB,[h1-.9,h1-.45,h1-.05],WCOL.gold),wYari(sw,cy,h1+.02,.34)]},
+  aka:{lo:.92,top:2.42,f:(sw,ln,cy,h0,h1)=>[wShaft(cy,h0,h1,.017,WCOL.shaftK,[h1-.75,h1-.4,h1-.1],WCOL.gold),cy(h1-.32,h1-.2,.0185,WCOL.red,.4),wNagi(sw,cy,h1+.02,.6)]}};
+// keep only the triangles that pass ok(bones of its 3 corners, heights)
+function triKeep(f,ok){const n=f.length/VS/3,o=new Float32Array(f.length);let m=0;const B=[0,0,0],Y=[0,0,0];
+  for(let t=0;t<n;t++){for(let c=0;c<3;c++){const q=f[(t*3+c)*VS+14]+.25,w=Math.floor(q/1024),r=q-w*1024;B[c]=w>=128?Math.floor(r)%32:Math.floor(r/32);Y[c]=f[(t*3+c)*VS+1];}
+    if(!ok(B,Y))continue;o.set(f.subarray(t*3*VS,(t+1)*3*VS),m);m+=3*VS;}
+  return o.subarray(0,m);}
+function meshOfLod(L,lo,hi,ckey,rb,ok,extra){const pos=new Uint16Array(b64u8(L.pos).buffer),nor=new Int8Array(b64u8(L.nor).buffer),bw=b64u8(L.bw),idx=L.i32?new Uint32Array(b64u8(L.idx).buffer):new Uint16Array(b64u8(L.idx).buffer);
   const uv=L.uv?new Uint16Array(b64u8(L.uv).buffer):null,col=L[ckey]?b64u8(L[ckey]):null;const f=new Float32Array(idx.length*VS);
   for(let k=0;k<idx.length;k++){const v=idx[k],o=k*VS;for(let a=0;a<3;a++){f[o+a]=lo[a]+(hi[a]-lo[a])*pos[v*3+a]/65535;f[o+3+a]=nor[v*3+a]/127;}
     if(uv){f[o+6]=f[o+7]=f[o+8]=1;f[o+10]=uv[v*2]/65535;f[o+11]=uv[v*2+1]/65535;f[o+12]=1;}else{f[o+6]=col[v*3]/255;f[o+7]=col[v*3+1]/255;f[o+8]=col[v*3+2]/255;}
-    f[o+9]=.12;f[o+14]=bw[v*3]+32*bw[v*3+1]+1024*bw[v*3+2];}
-  const m=skinInst(upMesh(f));m.lac=[0,0,0];return m;}
+    f[o+9]=.12;f[o+14]=rb?rb(bw[v*3],bw[v*3+1],bw[v*3+2],f[o+1]):bw[v*3]+32*bw[v*3+1]+1024*bw[v*3+2];}
+  let g=ok?triKeep(f,ok):f;if(extra){const h=new Float32Array(g.length+extra.length);h.set(g);h.set(extra,g.length);g=h;}
+  const m=skinInst(upMesh(g));m.lac=[0,0,0];return m;}
 function texFrom(src,cb){const im=new Image();im.onload=()=>{const t=mkTex(im);gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);cb(t);};im.src=src;}
 function buildFoot(){const A=window.FOOT3D;if(!A||!gl)return;const out={};let wait=0;
-  for(const kind in A){const e=A[kind],lo=e.lo,hi=e.hi;
-    const m0=meshOfLod(e.lods[0],lo,hi,'col'),M={kind,q:e.q,C:e.C.map(c3m),Cw:c3m(e.Cw),grip:e.grip,hand:e.hand,hip:e.q[0][1],
-      lods:[[m0,m0],[meshOfLod(e.lods[1],lo,hi,'col'),meshOfLod(e.lods[1],lo,hi,'colE')],[meshOfLod(e.lods[2],lo,hi,'col'),meshOfLod(e.lods[2],lo,hi,'colE')]],tex:[null,null]};
+  for(const kind in A){const e=A[kind],lo=e.lo,hi=e.hi,FW=FOOTW[kind];
+    // a drawn weapon in place of the model's own (it sits in the weapon bone's frame directly: no Cw, grip at the origin)
+    const ok=FW?(B=>!B.includes(16)):null,ex=FW?wpnMesh(FW,wMap([0,0,0],[0,1,0],[0,0,1]),16):null,ml=(L,ck)=>meshOfLod(L,lo,hi,ck,null,ok,ex);
+    const m0=ml(e.lods[0],'col'),M={kind,q:e.q,C:e.C.map(c3m),Cw:c3m(FW?[1,0,0,0,1,0,0,0,1]:e.Cw),grip:FW?[0,0,0]:e.grip,hand:e.hand,hip:e.q[0][1],
+      lods:[[m0,m0],[ml(e.lods[1],'col'),ml(e.lods[1],'colE')],[ml(e.lods[2],'col'),ml(e.lods[2],'colE')]],tex:[null,null]};
     out[kind]=M;wait+=2;texFrom(e.tex,t=>{M.tex[0]=t;if(--wait===0)FOOTM=out;});texFrom(e.texE,t=>{M.tex[1]=t;if(--wait===0)FOOTM=out;});}}
 const FPAR=[-1,0,1,2,2,4,5,2,7,8,0,10,11,0,13,14],FS=[...Array(17)].map(()=>new Float32Array(16)),_fr=new Float32Array(16),_ft=new Float32Array(16);
 function rotOnly(o,m){for(let c=0;c<3;c++){const l=Math.hypot(m[c*4],m[c*4+1],m[c*4+2])||1;o[c*4]=m[c*4]/l;o[c*4+1]=m[c*4+1]/l;o[c*4+2]=m[c*4+2]/l;o[c*4+3]=0;}o[12]=o[13]=o[14]=0;o[15]=1;return o;}
@@ -5021,19 +5088,38 @@ function loadAka(){if(AKALOAD)return;AKALOAD=true;const go=()=>{try{buildAka();}
 function b64u8(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
 function buildAka(){const MA=window.MOUNT3D;if(!MA||!gl)return;const res={};let wait=0;for(const kind in MA)buildMount(MA[kind],kind,res,()=>{if(--wait===0)AKAM=res;},()=>wait++);}
 function buildMount(A,kind,res,done,inc){const lo=A.lo,hi=A.hi;inc();
-  const lodsE=A.texE?A.lods.map((L,i)=>i?meshOfLod(L,lo,hi,'colE'):null):null;
+  // the tail hangs from one bone in the model: split it into three (root, middle, end) so it can stream out behind at a run
+  const nb0=A.bones.length,T2=nb0,T3b=nb0+1,tp=A.piv.tail,TY=[tp[1],tp[1]-.34,tp[1]-.72];
+  const tw=(y,a)=>clamp((a-y)/.16+.5,0,1);// 0 above the joint at height a, 1 below
+  const rb=(b0,b1,w,y)=>{if((b0===11||b1===11)&&w<250&&y<tp[1]-.15){const d=w>=128?b0:b1;if(d!==11)return d+32*d+1024*255;b0=11;w=255;}// below the dock: no half-tail vertices (they would stretch when the tail lifts)
+    if(b0!==11||w<250)return b0+32*b1+1024*w;const k2=tw(y,TY[1]),k3=tw(y,TY[2]);
+    if(k3>0)return T3b+32*T2+1024*Math.round(255*k3);if(k2>0)return T2+32*11+1024*Math.round(255*k2);return 11+32*11+1024*255;};
+  const tpv=[tp,[tp[0],TY[1],tp[2]-.05],[tp[0],TY[2],tp[2]-.07]];
+  // the decimated model joins the tail to the hind legs and rump in places: cut those triangles or they stretch into a sheet
+  const isT=b=>b===11||b===T2||b===T3b,ok0=(B,Y)=>{const t=B.map(isT);if(!t.some(x=>x)||t.every(x=>x))return true;return Math.min(Y[0],Y[1],Y[2])>tp[1]-.12&&!B.some(b=>b>=5&&b<=8);};
+  // the polearm: drawn along the model's own pole (its axis taken from the pole's vertices)
+  const MW=MOUNTW[kind];let ok=ok0,extra=null;
+  if(MW){const L0=A.lods[0],ps=new Uint16Array(b64u8(L0.pos).buffer),bw0=b64u8(L0.bw),pts=[];
+    for(let v=0;v<ps.length/3;v++)if(bw0[v*3]===14)pts.push([0,1,2].map(a=>lo[a]+(hi[a]-lo[a])*ps[v*3+a]/65535));
+    if(pts.length>8){const c=[0,1,2].map(a=>pts.reduce((m,p)=>m+p[a],0)/pts.length);let ax=[0,1,0];
+      for(let it=0;it<20;it++){const n=[0,0,0];for(const p of pts){const d=[p[0]-c[0],p[1]-c[1],p[2]-c[2]],k=d[0]*ax[0]+d[1]*ax[1]+d[2]*ax[2];n[0]+=d[0]*k;n[1]+=d[1]*k;n[2]+=d[2]*k;}const l=Math.hypot(...n)||1;ax=n.map(x=>x/l);}
+      if(ax[1]<0)ax=ax.map(x=>-x);let f=[0,0,1];const k=f[1]*ax[1]+f[2]*ax[2]+f[0]*ax[0];f=[f[0]-ax[0]*k,f[1]-ax[1]*k,f[2]-ax[2]*k];const fl=Math.hypot(...f);f=f.map(x=>x/fl);
+      const h0=(MW.lo-c[1])/ax[1],h1=(MW.top-c[1])/ax[1];extra=wpnMesh((sw,ln,cy)=>MW.f(sw,ln,cy,h0,h1),wMap(c,ax,f),14);
+      ok=(B,Y)=>!B.includes(14)&&ok0(B,Y);}}
+  const lodsE=A.texE?A.lods.map((L,i)=>i?meshOfLod(L,lo,hi,'colE',rb,ok,extra):null):null;
   if(A.texE){inc();texFrom(A.texE,t=>{res['E'+kind]={texE:t,lodsE};done();});}
   const lods=A.lods.map(L=>{const pos=new Uint16Array(b64u8(L.pos).buffer),nor=new Int8Array(b64u8(L.nor).buffer),bw=b64u8(L.bw),idx=new Uint16Array(b64u8(L.idx).buffer);
     const uv=L.uv?new Uint16Array(b64u8(L.uv).buffer):null,col=L.col?b64u8(L.col):null;const f=new Float32Array(idx.length*VS);
     for(let k=0;k<idx.length;k++){const v=idx[k],o=k*VS;for(let a=0;a<3;a++){f[o+a]=lo[a]+(hi[a]-lo[a])*pos[v*3+a]/65535;f[o+3+a]=nor[v*3+a]/127;}
       if(uv){f[o+6]=f[o+7]=f[o+8]=1;f[o+10]=uv[v*2]/65535;f[o+11]=uv[v*2+1]/65535;f[o+12]=1;}else{f[o+6]=col[v*3]/255;f[o+7]=col[v*3+1]/255;f[o+8]=col[v*3+2]/255;}
-      f[o+9]=.12;f[o+14]=bw[v*3]+32*bw[v*3+1]+1024*bw[v*3+2];}
-    const m=skinInst(upMesh(f));m.lac=[0,0,0];return m;});
+      f[o+9]=.12;f[o+14]=rb(bw[v*3],bw[v*3+1],bw[v*3+2],f[o+1]);}
+    let g=triKeep(f,ok);if(extra){const h=new Float32Array(g.length+extra.length);h.set(g);h.set(extra,g.length);g=h;}
+    const m=skinInst(upMesh(g));m.lac=[0,0,0];return m;});
   const im=new Image();im.onload=()=>{const t=mkTex(im);gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-    res[kind]={kind,lods,tex:t,piv:A.bones.map(b=>A.piv[b]),nb:A.bones.length,bow:A.bones.includes('bow'),hrest:A.hrest};done();};im.src=A.tex;}
+    res[kind]={kind,lods,tex:t,piv:A.bones.map(b=>A.piv[b]),nb:nb0+2,tail:[T2,T3b,tpv],bow:A.bones.includes('bow'),hrest:A.hrest};done();};im.src=A.tex;}
 // which bone of the code-built horse drives each bone here: [own index, horse bone, parent]
 const AKB=[[1,3,0],[2,4,1],[3,5,0],[4,6,3],[5,7,0],[6,8,5],[7,9,0],[8,10,7],[9,1,0],[10,2,9],[11,11,0]];
-const _ai=new Float32Array(16),_al=new Float32Array(16),_ap=new Float32Array(16),_ar=new Float32Array(16),AKW=[...Array(20)].map(()=>new Float32Array(16));
+const _ai=new Float32Array(16),_al=new Float32Array(16),_ap=new Float32Array(16),_ar=new Float32Array(16),AKW=[...Array(24)].map(()=>new Float32Array(16));
 function pivR(out,par,R,pv){const A=_ap;A.set(R);A[3]=A[7]=A[11]=0;A[15]=1;
   A[12]=pv[0]-(R[0]*pv[0]+R[4]*pv[1]+R[8]*pv[2]);A[13]=pv[1]-(R[1]*pv[0]+R[5]*pv[1]+R[9]*pv[2]);A[14]=pv[2]-(R[2]*pv[0]+R[6]*pv[1]+R[10]*pv[2]);M4.mul(out,par,A);}
 const AKCUT=[[0,0],[.3,-.6],[.42,-.7],[.55,1.75],[.7,1.6],[1,0]],AKTH=[[0,0],[.3,1.1],[.42,1.25],[.55,1.45],[.72,1.4],[1,0]];
@@ -5051,7 +5137,18 @@ function akaMats(u,BT,off,MM){const H=u.HW,P=MM.piv;
   // the arm turns at the shoulder only part of the way; the naginata turns the rest at the fist
   M4.trs(_ar,0,0,fw*.5,tw,th*.42,0);pivR(AKW[13],AKW[12],_ar,P[13]);M4.trs(_ar,0,0,fw*.5,0,th*.58,0);pivR(AKW[14],AKW[13],_ar,P[14]);
   if(MM.bow)akBowPose(u,a,MM);
+  if(MM.tail)akTail(u,MM);
   for(let i=0;i<MM.nb;i++)BT.set(AKW[i],off+i*16);}
+/* the tail streams out behind at a run: three bones, each lifting a little more and lagging the stride a little more */
+const _tx=new Float32Array(16),_tz=new Float32Array(16),_tr=new Float32Array(16);
+function tailR(th,rl,k=1){const c=Math.cos(th),s=Math.sin(th),cr=Math.cos(rl),sr=Math.sin(rl);
+  _tx.fill(0);_tx[0]=1;_tx[5]=c;_tx[6]=s;_tx[9]=-s;_tx[10]=c;_tx[15]=1;_tz.fill(0);_tz[0]=cr;_tz[1]=sr;_tz[4]=-sr;_tz[5]=cr;_tz[10]=1;_tz[15]=1;M4.mul(_tr,_tz,_tx);if(k!==1)for(const c of[0,1,2,8,9,10])_tr[c]*=k;return _tr;}
+function akTail(u,MM){const[T2,T3b,pv]=MM.tail,t=T3(),al=u.alive,s=al?(u.aspd||0):0,g=clamp((s-1.2)/5.5,0,1),ph=u.hgait||0,turn=al?clamp(u.ayv||0,-2.5,2.5):0;
+  const sw=(1-g)*.14*Math.sin(t*1.15+u.id),fl=k=>g*.06*Math.sin(t*8.5+k+u.id);// standing: a slow swish; running: it flutters
+  const th1=al?.08+1.2*g+.08*g*Math.sin(ph):.3,th2=-.16*g+.14*g*Math.sin(ph-1.1),th3=-.26*g+.22*g*Math.sin(ph-2.2);// root lifts, the hair flows back level and droops a little at the end
+  pivR(AKW[11],AKW[0],tailR(th1,sw-turn*.12*g+fl(0),.55),pv[0]);// thinner than the model's: a slim tail, not a cape
+  pivR(AKW[T2],AKW[11],tailR(th2,sw*.8-turn*.1*g+fl(1.3),1+.25*g),pv[1]);// the hair spreads toward the end
+  pivR(AKW[T3b],AKW[T2],tailR(th3,sw*.8-turn*.08*g+fl(2.6),1+.6*g),pv[2]);}
 
 /* the horse archer draws the bow: left arm pushes the bow out front-left, right hand takes the string to the cheek, the arrow flies at the release */
 const BV={sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],sc:(a,k)=>[a[0]*k,a[1]*k,a[2]*k],dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
@@ -6230,7 +6327,7 @@ function applyLang(){
   document.querySelectorAll('.ub').forEach(b=>{const kd=b.id.slice(3),n=b.querySelector('.nm');if(n)n.textContent=kd==='cmd'?TT('指揮','Command'):nm(K[kd]);});
   try{if(S){updateButtons();hud();}else{$('#lv').textContent=TT('第1陣','Battle 1');$('#phase').textContent=TT('陣地構築','Deploy');$('#rate').textContent=TT('+8.0/秒','+8.0/s');$('#modeBtn').textContent=TT('全軍突撃','All attack');$('#startBtn').innerHTML='<i class="ico ico-saihai"></i><span>'+TT('開戦する','Start battle')+'</span>';}}catch(e){}
 }
-const APP_VER='3D-2026.10.25-11';
+const APP_VER='3D-2026.10.31-6';
 // brush-written labels on the home screen (Japanese only): images of the calligraphy, text kept for screen readers
 function BW(k,t){return`<span class="wimg w-${k}" role="img" aria-label="${t}"></span>`;}
 function WT(k,ja,en){return EN()?en:BW(k,ja);}
